@@ -2,8 +2,11 @@
 
 ; Code is the same for both CANACC5 and CANACC8 except for the module ID
 
-; filename CANACC5_v2rbeta1.asm  24/05/15 (RH)
+; filename CANACC5_v2s.asm (RH) 14/06/15
+; 
 ; Has CANACC5 module ID
+
+
 
 ; based on CANACC5_v2n. Now includes feedback events and startup options.
 ; Feedback etc only settable via FLiM 
@@ -42,7 +45,7 @@
 ;read node parameters <0x10> Only works in setup mode. Sends string of 7 bytes as 
 ;<0xEF><para1><para2><para3><para4><para5><para6><para7>
 
-;this code assumes a three byte EV. EVI, EV2 and EV3. EV3 used for feedback 
+;this code assumes a three byte EV. EV1, EV2 and EV3. EV3 used for feedback 
 
 ;EV1 sets which outputs are active  (1 in each bit position is active)
 ;EV2 sets the polarity of each active output. A 1 bit is reverse.
@@ -61,6 +64,10 @@
 
 ; 24/05/15 Version 2r Beta 1. Fix bug in reval to set ENidx and EVidx correctly (RH)
 ; Now release version 2r
+
+; v2sBeta 1   EEPROM layout modified to make it compatable with earlier versions
+;   EVstart now moved back to 0xF00086
+; v2s Release version 22/06/15 MB
 
 
 ;end of comments for CANACC5 / 8
@@ -176,7 +183,7 @@ RQNN  equ 0xbc  ; response to OPC_QNN - provisional
 
 MAN_NO      equ MANU_MERG    ;manufacturer number
 MAJOR_VER   equ 2
-MINOR_VER   equ "R"
+MINOR_VER   equ "S"
 MODULE_ID   equ MTYP_CANACC5   ; id to identify this type of module
 EVT_NUM     equ EN_NUM           ; Number of events
 EVperEVT    equ EV_NUM           ; Event variables per event
@@ -3493,7 +3500,8 @@ ENindex de  0,0   ;points to next available EN number (in lo byte)
 
 ENstart ;feedback events stored here. Room for 8 four byte events, one per output.
 
-    ORG 0xF00026
+; EVstart set here for compatability with earlier versions
+    ORG 0xF00086
     
     ;event variables stored here. set to zero initially
     
@@ -3506,7 +3514,9 @@ hashtab de  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 hashnum de  0,0,0,0,0,0,0,0
 
 FreeCh  de  0,0
-;must keep aligmant unchanged
+
+;must keep alignment unchanged
+
 spare de  0,0,0,0,0,0
 
   
