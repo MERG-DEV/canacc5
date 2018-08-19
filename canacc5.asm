@@ -2,11 +2,12 @@
 
 ; Code is the same for both CANACC5 and CANACC8 except for the module ID
 
-; filename CANACC5_v2s.asm (RH) 14/06/15
+; filename CANACC5_v2t.asm (RH) 26/07/15
 ; 
 ; Has CANACC5 module ID
 
-
+; v2sBeta 1 EEPROM layout mo0dified to make it compatable with earlier versions
+;     EVstart now move back to 0xF00086
 
 ; based on CANACC5_v2n. Now includes feedback events and startup options.
 ; Feedback etc only settable via FLiM 
@@ -45,7 +46,7 @@
 ;read node parameters <0x10> Only works in setup mode. Sends string of 7 bytes as 
 ;<0xEF><para1><para2><para3><para4><para5><para6><para7>
 
-;this code assumes a three byte EV. EV1, EV2 and EV3. EV3 used for feedback 
+;this code assumes a three byte EV. EVI, EV2 and EV3. EV3 used for feedback 
 
 ;EV1 sets which outputs are active  (1 in each bit position is active)
 ;EV2 sets the polarity of each active output. A 1 bit is reverse.
@@ -61,13 +62,9 @@
 
 ; CANACC5 v2p has feedback and polling. This is a update on rev 2n.  (no rev O)
 ; This code is identical to CANACC8 rev v2m except for the module ID.   
-
-; 24/05/15 Version 2r Beta 1. Fix bug in reval to set ENidx and EVidx correctly (RH)
 ; Now release version 2r
-
-; v2sBeta 1   EEPROM layout modified to make it compatable with earlier versions
-;   EVstart now moved back to 0xF00086
-; v2s Release version 22/06/15 MB
+; 24/05/15 Version 2r Beta 1. Fix bug in reval to set ENidx and EVidx correctly (RH)
+; 26/07/15 Fix bug in code associated with set CAN_D, in newId (RH) Now v2t
 
 
 ;end of comments for CANACC5 / 8
@@ -183,7 +180,7 @@ RQNN  equ 0xbc  ; response to OPC_QNN - provisional
 
 MAN_NO      equ MANU_MERG    ;manufacturer number
 MAJOR_VER   equ 2
-MINOR_VER   equ "S"
+MINOR_VER   equ "T"
 MODULE_ID   equ MTYP_CANACC5   ; id to identify this type of module
 EVT_NUM     equ EN_NUM           ; Number of events
 EVperEVT    equ EV_NUM           ; Event variables per event
@@ -1993,7 +1990,7 @@ setNN btfss Datmode,2   ;in NN set mode?
 newID call  thisNN
     sublw 0
     bnz   notNN
-    movff ev3,IDcount
+    movff ev2,IDcount
 
     call  here2       ;put in as if it was enumerated
     movlw 0x52
@@ -3514,9 +3511,7 @@ hashtab de  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 hashnum de  0,0,0,0,0,0,0,0
 
 FreeCh  de  0,0
-
-;must keep alignment unchanged
-
+;must keep aligmant unchanged
 spare de  0,0,0,0,0,0
 
   
