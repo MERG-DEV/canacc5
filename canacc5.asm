@@ -1,5 +1,5 @@
 ;     TITLE   "ACC5 source for combined SLiM / FLiM node for CBUS"
-; filename CANACC5_v2k.asm  18/08/12  
+; filename CANACC5_v2m.asm  18/08/12  
 
 ;  SLiM / FLiM version  19/11/09
 ; this code is for 18F2480 
@@ -100,6 +100,8 @@
 ;Rev v2h    Include file now evhndlr_e.asm, remove NEVER compiled code
 ;Rev v2j    Change parameters to new format
 ;Rev v2k    Changed for self_enum as separate subroutine. Added OpCodes 0x5D and 0x75
+;rev v2m    no version 2l, add WRACK after updating an NV
+;       chnage to use cbusdefs8f.inc
 
 ;end of comments for ACC5
 
@@ -174,7 +176,7 @@
   LIST  P=18F2480,r=hex,N=75,C=120,T=OFF
 
   include   "p18f2480.inc"
-  include   "cbuslib/constants.inc"
+  include   "cbuslib/cbusdefs.inc"
   
   ;definitions  for ACC8   Change these to suit hardware.
   
@@ -212,7 +214,7 @@ RQNN  equ 0xbc  ; response to OPC_QNN - provisional
 
 MAN_NO      equ MANU_MERG    ;manufacturer number
 MAJOR_VER   equ 2
-MINOR_VER   equ "K"
+MINOR_VER   equ "M"
 MODULE_ID   equ MTYP_CANACC5 ; id to identify this type of module
 EVT_NUM     equ EN_NUM           ; Number of events
 EVperEVT    equ EV_NUM           ; Event variables per event
@@ -2787,6 +2789,8 @@ putNV movlw NV_NUM + 1    ;put new NV in EEPROM and the NV ram.
     addlw LOW NVstart
     movwf EEADR
     movf  Rx0d4,W
+    movlw 0x59
+    call  nnrel     ; send WRACK
   
     call  eewrite 
     
