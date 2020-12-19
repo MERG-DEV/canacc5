@@ -2391,7 +2391,9 @@ seten_f call  evcopy      ;initialise EVs etc to RAM
     bcf   Datmode,0
     goto  main
 
-slimset bcf   Mode,1
+slimset
+    call  newid_f     ;put ID into Tx1buf, TXB2 and ID number store
+    bcf   Mode,1
     clrf  NN_temph
     clrf  NN_templ
     ;test for clear all events
@@ -3249,7 +3251,6 @@ en_1  btfss Datmode,1     ;setup mode?
     movf  RXB0DLC,F
     bnz   no_can1       ;only zero length frames
     call  setmode
-    bra   no_can1 
 
 no_can1 bcf   RXB0CON,RXFUL
     bra   self_en1      ;loop till timer out 
@@ -3327,7 +3328,6 @@ enum_2  dcfsnz  IDcount,F
     bra   enum_2
 enum_3  movf  Roll,W
     iorwf INDF1,F
-    bcf   RXB0CON,RXFUL   ;clear read
     return
 ;*******************************************************
 
