@@ -1242,14 +1242,8 @@ errbak    bcf   RXB1CON,RXFUL
     
     bcf   COMSTAT,RXB0OVFL  ;clear overflow flags if set
     bcf   COMSTAT,RXB1OVFL    
-    bra   back1
-
-
-    
-back  bcf   RXB0CON,RXFUL ;ready for next
   
-  
-back1 clrf  PIR3      ;clear all flags
+back clrf  PIR3      ;clear all flags
     movf  CANCON,W
     andlw B'11110001'
     iorwf TempCANCON,W
@@ -1605,7 +1599,6 @@ get_3 movf  RXB0DLC,F
     bra   no_can 
 get_2 call  copyev      ;save buffer
     bsf   Datmode,0   ;valid message frame  
-    bra   main_OK
 
 no_can  bcf   RXB0CON,RXFUL
 
@@ -1977,7 +1970,7 @@ para1s
     call  para1rd
     bra   main2
       
-main2 bcf   RXB0CON,RXFUL
+main2
     bcf   Datmode,0
     goto  main      ;loop
     
@@ -2075,7 +2068,6 @@ enum  call  thisNN
     call  self_en
     movlw 0x52
     call  nnrel     ;send confirm frame
-    bcf   RXB0CON,RXFUL
     movlw B'00001000'   ;back to normal running
     movwf Datmode
     goto  main2
@@ -2224,7 +2216,7 @@ rdbak
 l_out bcf   Datmode,4
 
 l_out1  bcf   Datmode,6
-l_out2  bcf   RXB0CON,RXFUL
+l_out2
     bcf   Datmode,0
     
     clrf  PCLATH
@@ -3018,7 +3010,7 @@ numParams
     return
     
 pidxerr
-    movlw .10
+    movlw .9
     call  errsub
     return
     
