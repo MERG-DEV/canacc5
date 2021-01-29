@@ -1234,7 +1234,7 @@ errint  movlb .15         ;change bank
     bcf   TXB1CON,TXREQ
     movlw B'00111111'
     andwf TXB1SIDH,F      ;change priority
-txagain bsf   TXB1CON,TXREQ   ;try again
+    bsf   TXB1CON,TXREQ   ;try again
           
 errbak    bcf   RXB1CON,RXFUL
     movlb 0
@@ -2059,6 +2059,7 @@ noEV1
 readENi call  thisNN      ;read event by index
     sublw 0
     bnz   notNN
+    movff RXB0D3, ENidx
     call  enrdi
     bra   main2
 
@@ -3524,8 +3525,9 @@ FreeCh  de  0,0
 spare de  0,0,0,0,0,0
 
   
-NVstart de  0,0,0,0,0,0,0,0
-    de 0x0A,0x00,0xFF,0xFF      ;4 NVs for node variables
+NVstart de  0,0,0,0,0,0,0,0 ; Output pulse times: 0 - Steady state,
+                            ;                     MSB set for continuous repeat
+        de 0x0A,0x00,0xFF,0xFF      ;4 NVs for node variables
                     ;NV9 is feedback delay. In 0.5mSec intervals approx.
                     ;NV10 startup position. Bit set is OFF end. 
                     ;bit  clear is now go to last saved position

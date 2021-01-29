@@ -1,0 +1,42 @@
+Parameter count
+20
+Manufacturer Id
+165
+Version minor part
+86
+Module Id
+2
+Maximum number of events
+128
+Number of variables per event
+3
+Number of node variables
+12
+Version major part
+2
+Node flags
+9
+CPU
+1
+Connected bus
+1
+Load address byte 0
+0
+Load address byte 1
+8
+Load address byte 2
+0
+Load address byte 3
+0
+Manufacturer processor code byte 0
+255
+Manufacturer processor code byte 1
+255
+Manufacturer processor code byte 2
+0
+Manufacturer processor code byte 3
+0
+Manufacturer code
+1
+Beta release code
+0

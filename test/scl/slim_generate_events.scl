@@ -1,0 +1,102 @@
+configuration for "PIC18F2480" is
+  shared variable Datmode;
+end configuration;
+--
+testbench for "PIC18F2480" is
+begin
+  slim_generate_events: process is
+    variable long_event   : boolean;
+    variable on_event     : boolean;
+    variable event_number : integer;
+    begin
+      report("slim_generate_events: START");
+      RA2 <= '1'; -- Setup button not pressed
+      RA1 <= '1'; -- Learn off
+      RA0 <= '1'; -- Unlearn off
+      --
+      wait until RB7 == '1'; -- Booted into SLiM
+      report("slim_generate_events: Green LED (SLiM) on");
+      --
+      -- Learn events
+      RA1 <= '0'; -- Learn on
+      --
+      RB0 <= '1'; -- Sel 0 off
+      RB1 <= '1'; -- Sel 1 off
+      RB4 <= '1'; -- Sel 2 off
+      RB5 <= '1'; -- Polarity normal, On event => A, Off event => B
+      --
+      long_event   := true;
+      on_event     := true;
+      event_number := 1;
+      --
+      while event_number < 128 loop
+        report("slim_generate_events: new event");
+        if long_event then
+          if on_event then
+            RXB0D0 <= 16#90#;
+            on_event := false;
+          else
+            RXB0D0 <= 16#91#;
+            on_event := true;
+            long_event := false;
+          end if;
+        else
+          if on_event then
+            RXB0D0 <= 16#98#;
+            on_event := false;
+          else
+            RXB0D0 <= 16#99#;
+            on_event := true;
+            long_event := true;
+            if RB5 == '1' then
+              RB5 <= '0';
+            else
+              RB5 <= '1';
+            end if;
+          end if;
+        end if;
+        --
+        if RB0 == '1' then
+          RB0 <= '0';
+        else
+          RB0 <= '1';
+          if RB1 == '1' then
+            RB1 <= '0';
+          else
+            RB1 <= '1';
+            if RB4 == '1' then
+              RB4 <= '0';
+            else
+              RB4 <= '1';
+            end if;
+          end if;
+        end if;
+        
+        RXB0D1 <= 9;         -- NN high
+        RXB0D2 <= 9;         -- NN low
+        RXB0D3 <= 9;
+        RXB0D4 <= event_number;
+        RXB0CON.RXFUL <= '1';
+        RXB0DLC.DLC3 <= '1';
+        COMSTAT <= 16#80#;
+        CANSTAT <= 16#0C#;
+        PIR3.RXB0IF <= '1';
+        --
+        wait until RXB0CON.RXFUL == '0';
+        COMSTAT <= 0;
+        --
+        if Datmode != 0 then
+          wait until Datmode == 0;
+        end if;
+        --
+        if TXB1CON.TXREQ == '1' then
+          report("slim_generate_events: Unexpected message");
+        end if;
+        --
+        event_number := event_number + 1;
+      end loop;
+      --
+      PC <= 0;
+      wait;
+    end process slim_generate_events;
+end testbench;

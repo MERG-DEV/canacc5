@@ -1,0 +1,60 @@
+Short 0x0402, 6 and 7 inverted, no feedback
+0
+0
+4
+2
+1
+6
+2
+6
+3
+0
+Done
+Long 0x0102,0x0402, 2 normal 3 inverted, no feedback
+1
+2
+4
+2
+1
+96
+2
+32
+3
+0
+Done
+Long on 0x0201,0x0604, 7 inverted, no feedback
+2
+1
+6
+4
+1
+2
+2
+2
+3
+0
+Done
+Long 0x0102,0x0204, 6 inverted, no feedback
+1
+2
+2
+4
+1
+4
+2
+4
+3
+0
+Done
+Short 0x0204, 2 normal, no feedback
+0
+0
+2
+4
+1
+64
+2
+0
+3
+0
+Done

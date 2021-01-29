@@ -1,0 +1,83 @@
+Short on 0x0201,0x0204
+98
+2
+1
+2
+4
+4 on
+16
+Done
+Long off 0x0102,0x0402
+91
+1
+2
+4
+2
+3 On
+48
+Done
+Long on 0x0102,0x0402
+90
+1
+2
+4
+2
+3 off
+16
+2 on
+80
+Done
+Short off 0x0101,0x0204
+99
+1
+1
+2
+4
+4 off
+64
+Done
+Short off 0x0303,0x0204
+99
+3
+3
+2
+4
+No change
+64
+Done
+Long off 0x0102,0x0204
+91
+1
+2
+2
+4
+5 on
+72
+Done
+Long off 0x0201,0x0604
+91
+2
+1
+6
+4
+7 on
+74
+Done
+Short off 0x0102,0x0204
+99
+1
+2
+2
+4
+No change
+74
+Done
+Short on 0x0606,0x0402
+98
+6
+6
+4
+2
+7 off
+72
+Done
