@@ -1,32 +1,33 @@
-          last_portc := PORTC;
-          if last_portc > 127 then
-            report("128");
-            last_portc := last_portc - 128;
-          end if;
-          if last_portc > 63 then
-            report("64");
-            last_portc := last_portc - 64;
-          end if;
-          if last_portc > 31 then
-            report("32");
-            last_portc := last_portc - 32;
-          end if;
-          if last_portc > 15 then
-            report("16");
-            last_portc := last_portc - 16;
-          end if;
-          if last_portc > 7 then
-            report("8");
-            last_portc := last_portc - 8;
-          end if;
-          if last_portc > 3 then
-            report("4");
-            last_portc := last_portc - 4;
-          end if;
-          if last_portc > 1 then
-            report("2");
-            last_portc := last_portc - 2;
-          end if;
-          if last_portc > 0 then
-            report("1");
-          end if;
+variable last_portc : integer;
+last_portc := PORTC;
+if last_portc > 127 then
+  report("128");
+  last_portc := last_portc - 128;
+end if;
+if last_portc > 63 then
+  report("64");
+  last_portc := last_portc - 64;
+end if;
+if last_portc > 31 then
+  report("32");
+  last_portc := last_portc - 32;
+end if;
+if last_portc > 15 then
+  report("16");
+  last_portc := last_portc - 16;
+end if;
+if last_portc > 7 then
+  report("8");
+  last_portc := last_portc - 8;
+end if;
+if last_portc > 3 then
+  report("4");
+  last_portc := last_portc - 4;
+end if;
+if last_portc > 1 then
+  report("2");
+  last_portc := last_portc - 2;
+end if;
+if last_portc > 0 then
+  report("1");
+end if;
