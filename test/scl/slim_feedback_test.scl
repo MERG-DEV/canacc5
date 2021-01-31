@@ -1,0 +1,181 @@
+configuration for "PIC18F2480" is
+end configuration;
+--
+testbench for "PIC18F2480" is
+begin
+  test_timeout: process is
+    begin
+      wait for 100 ms;
+      report("slim_feedback_test: TIMEOUT");
+      report(PC); -- Crashes simulator, MDB will report current source line
+      PC <= 0;
+      wait;
+    end process test_timeout;
+    --
+  slim_feedback_test: process is
+    type test_result is (pass, fail);
+    variable test_state : test_result;
+    file     data_file  : text;
+    variable file_stat  : file_open_status;
+    variable file_line  : string;
+    begin
+      report("slim_feedback_test: START");
+      test_state := pass;
+      RA2 <= '1'; -- Setup button not pressed
+      RA1 <= '1'; -- Learn off
+      RA0 <= '1'; -- Unlearn off
+      --
+      wait until RB7 == '1'; -- Booted into SLiM
+      report("slim_nv_write_test: Green LED (SLiM) on");
+      --
+      report("slim_feedback_test: Short on 0x0201,0x0204, output 2 on");
+      RXB0D0 <= 16#98#;      -- ASON, CBUS short on
+      RXB0D1 <= 2;           -- NN high
+      RXB0D2 <= 1;           -- NN low
+      RXB0D3 <= 2;           -- Event number high
+      RXB0D4 <= 4;           -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until PORTC != 0;
+      if PORTC == 64 then
+        report("slim_feedback_test: Output 2 on");
+      else
+        report("slim_feedback_test: Wrong output");
+        test_state := fail;
+      end if;
+      --
+      if TXB1CON.TXREQ != '1' then
+        report("slim_feedback_test: Waiting for output 2 feedback");
+        wait until TXB1CON.TXREQ == '1' for 4 ms;
+      end if;
+      if TXB1CON.TXREQ != '1' then
+        report("slim_feedback_test: Missing output 2 feedback event");
+        test_state := fail;
+      end if;
+      if TXB1D0 != 16#90# then -- ACON, CBUS long on
+        report("slim_feedback_test: Sent wrong event");
+        test_state := fail;
+      end if;
+      if TXB1D1 != 2 then
+        report("slim_feedback_test: Sent wrong Node Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D2 != 22 then
+        report("slim_feedback_test: Sent wrong Node Number (low)");
+        test_state := fail;
+      end if;
+      if TXB1D3 != 23 then
+        report("slim_feedback_test: Sent wrong Event Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D4 != 24 then
+        report("slim_feedback_test: Sent wrong Event Number (low)");
+        test_state := fail;
+      end if;
+      --
+      report("slim_feedback_test: Long off 0x0201,0x0604, output 7 on");
+      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
+      RXB0D1 <= 2;           -- NN high
+      RXB0D2 <= 1;           -- NN low
+      RXB0D3 <= 6;           -- Event number high
+      RXB0D4 <= 4;           -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until PORTC == 66 for 6 ms;
+      if PORTC == 66 then
+        report("slim_feedback_test: Outputs 2 & 7 on");
+      else
+        report("slim_feedback_test: Wrong output");
+        test_state := fail;
+      end if;
+      --
+      if TXB1CON.TXREQ != '1' then
+        report("slim_feedback_test: Waiting for output 7 feedback");
+        wait until TXB1CON.TXREQ == '1' for 1 ms;
+      end if;
+      if TXB1CON.TXREQ == '1' then
+        report("slim_feedback_test: Unexpected output 7 feedback event");
+        test_state := fail;
+      end if;
+      --
+      report("slim_feedback_test: Short off 0x0909,0x0402, output 6 & 7 on");
+      RXB0D0 <= 16#99#;      -- ASOF, CBUS short off
+      RXB0D1 <= 9;           -- NN high
+      RXB0D2 <= 9;           -- NN low
+      RXB0D3 <= 4;           -- Event number high
+      RXB0D4 <= 2;           -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until PORTC == 70 for 7 ms;
+      if PORTC == 70 then
+        report("slim_feedback_test: Outputs 2, 6 & 7 on");
+      else
+        report("slim_feedback_test: Wrong output");
+        test_state := fail;
+      end if;
+      --
+      if TXB1CON.TXREQ != '1' then
+        report("slim_feedback_test: Waiting for output 2 feedback");
+        wait until TXB1CON.TXREQ == '1' for 1 ms;
+      end if;
+      if TXB1CON.TXREQ != '1' then
+        report("slim_feedback_test: Missing output 2 feedback event");
+        test_state := fail;
+      end if;
+      if TXB1D0 != 16#91# then -- ACON, CBUS long off
+        report("slim_feedback_test: Sent wrong event");
+        test_state := fail;
+      end if;
+      if TXB1D1 != 6 then
+        report("slim_feedback_test: Sent wrong Node Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D2 != 62 then
+        report("slim_feedback_test: Sent wrong Node Number (low)");
+        test_state := fail;
+      end if;
+      if TXB1D3 != 63 then
+        report("slim_feedback_test: Sent wrong Event Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D4 != 64 then
+        report("slim_feedback_test: Sent wrong Event Number (low)");
+        test_state := fail;
+      end if;
+      --
+      if test_state == pass then
+        report("slim_feedback_test: PASS");
+      else
+        report("slim_feedback_test: FAIL");
+      end if;          
+      PC <= 0;
+      wait;
+    end process slim_feedback_test;
+end testbench;
