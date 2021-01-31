@@ -5,7 +5,7 @@ testbench for "PIC18F2480" is
 begin
   test_timeout: process is
     begin
-      wait for 100 ms;
+      wait for 33 ms;
       report("slim_feedback_test: TIMEOUT");
       report(PC); -- Crashes simulator, MDB will report current source line
       PC <= 0;
@@ -55,7 +55,7 @@ begin
       --
       if TXB1CON.TXREQ != '1' then
         report("slim_feedback_test: Waiting for output 2 feedback");
-        wait until TXB1CON.TXREQ == '1' for 4 ms;
+        wait until TXB1CON.TXREQ == '1' for 5 ms;
       end if;
       if TXB1CON.TXREQ != '1' then
         report("slim_feedback_test: Missing output 2 feedback event");
@@ -109,7 +109,7 @@ begin
       --
       if TXB1CON.TXREQ != '1' then
         report("slim_feedback_test: Waiting for output 7 feedback");
-        wait until TXB1CON.TXREQ == '1' for 1 ms;
+        wait until TXB1CON.TXREQ == '1' for 5 ms;
       end if;
       if TXB1CON.TXREQ == '1' then
         report("slim_feedback_test: Unexpected output 7 feedback event");
@@ -143,7 +143,7 @@ begin
       --
       if TXB1CON.TXREQ != '1' then
         report("slim_feedback_test: Waiting for output 6 feedback");
-        wait until TXB1CON.TXREQ == '1' for 1 ms;
+        wait until TXB1CON.TXREQ == '1' for 5 ms;
       end if;
       if TXB1CON.TXREQ != '1' then
         report("slim_feedback_test: Missing output 6 feedback event");
