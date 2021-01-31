@@ -41,9 +41,7 @@ begin
       CANSTAT <= 16#0C#;
       PIR3.RXB0IF <= '1';
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
+      wait until RXB0CON.RXFUL == '0';
       COMSTAT <= 0;
       --
       report("slim_teach_test: Teach long 0x0102,0x0402");
@@ -60,9 +58,7 @@ begin
       CANSTAT <= 16#0C#;
       PIR3.RXB0IF <= '1';
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
+      wait until RXB0CON.RXFUL == '0';
       COMSTAT <= 0;
       --
       TXB1CON.TXREQ <= '0';
@@ -82,9 +78,7 @@ begin
       CANSTAT <= 16#0C#;
       PIR3.RXB0IF <= '1';
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
+      wait until RXB0CON.RXFUL == '0';
       COMSTAT <= 0;
       --
       report("slim_teach_test: Test long on 0x0102,0x0402");

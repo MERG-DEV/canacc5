@@ -15,9 +15,6 @@ begin
   flim_feedback_test: process is
     type test_result is (pass, fail);
     variable test_state : test_result;
-    file     data_file  : text;
-    variable file_stat  : file_open_status;
-    variable file_line  : string;
     begin
       report("flim_feedback_test: START");
       test_state := pass;
