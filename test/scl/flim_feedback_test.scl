@@ -142,14 +142,14 @@ begin
       end if;
       --
       if TXB1CON.TXREQ != '1' then
-        report("flim_feedback_test: Waiting for output 2 feedback");
+        report("flim_feedback_test: Waiting for output 6 feedback");
         wait until TXB1CON.TXREQ == '1' for 1 ms;
       end if;
       if TXB1CON.TXREQ != '1' then
-        report("flim_feedback_test: Missing output 2 feedback event");
+        report("flim_feedback_test: Missing output 6 feedback event");
         test_state := fail;
       end if;
-      if TXB1D0 != 16#91# then -- ACON, CBUS long off
+      if TXB1D0 != 16#91# then -- ACON, CBUS long off (6 feedback is inverted)
         report("flim_feedback_test: Sent wrong event");
         test_state := fail;
       end if;
