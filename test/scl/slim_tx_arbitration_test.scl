@@ -24,6 +24,8 @@ begin
       report("slim_tx_arbitration_test: START");
       test_state := pass;
       RA2 <= '1'; -- Setup button not pressed
+      RA1 <= '1'; -- Learn off
+      RA0 <= '1'; -- Unlearn off
       --
       wait until RB7 == '1'; -- Booted into SLiM
       report("slim_tx_arbitration_test: Green LED (SLiM) on");
@@ -44,8 +46,8 @@ begin
       --
       file_open(file_stat, sidh_file, "./data/slim_sidh.dat", read_mode);
       if file_stat != open_ok then
-        report("flim_unteach_test: Failed to open SIDH data file");
-        report("flim_unteach_test: FAIL");
+        report("slim_tx_arbitration_test: Failed to open SIDH data file");
+        report("slim_tx_arbitration_test: FAIL");
         PC <= 0;
         wait;
       end if;

@@ -24,6 +24,8 @@ begin
       report("flim_nv_read_test: START");
       test_state := pass;
       RA2 <= '1'; -- Setup button not pressed
+      RA1 <= '1'; -- Learn off
+      RA0 <= '1'; -- Unlearn off
       --
       wait until RB6 == '1'; -- Booted into FLiM
       report("flim_nv_read_test: Yellow LED (FLiM) on");

@@ -21,6 +21,8 @@ begin
       report("slim_no_can_id_test: START");
       test_state := pass;
       RA2 <= '1'; -- Setup button not pressed
+      RA1 <= '1'; -- Learn off
+      RA0 <= '1'; -- Unlearn off
       --
       wait until RB7 == '1'; -- Booted into SLiM
       report("slim_no_can_id_test: Green LED (SLiM) on");
