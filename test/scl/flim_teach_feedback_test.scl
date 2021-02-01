@@ -43,13 +43,7 @@ begin
       wait until RXB0CON.RXFUL == '0';
       COMSTAT <= 0;
       --
-      wait until PORTC != 0;
-      if PORTC == 64 then
-        report("flim_teach_feedback_test: Output 2 on");
-      else
-        report("flim_teach_feedback_test: Wrong output");
-        test_state := fail;
-      end if;
+      wait on PORTC;
       --
       if TXB1CON.TXREQ != '1' then
         report("flim_teach_feedback_test: Waiting for output 2 feedback");
