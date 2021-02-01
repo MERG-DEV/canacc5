@@ -66,15 +66,15 @@ begin
         report("flim_feedback_test: Sent wrong Node Number (high)");
         test_state := fail;
       end if;
-      if TXB1D2 != 22 then
+      if TXB1D2 != 32 then
         report("flim_feedback_test: Sent wrong Node Number (low)");
         test_state := fail;
       end if;
-      if TXB1D3 != 23 then
+      if TXB1D3 != 33 then
         report("flim_feedback_test: Sent wrong Event Number (high)");
         test_state := fail;
       end if;
-      if TXB1D4 != 24 then
+      if TXB1D4 != 18 then
         report("flim_feedback_test: Sent wrong Event Number (low)");
         test_state := fail;
       end if;
@@ -154,15 +154,15 @@ begin
         report("flim_feedback_test: Sent wrong Node Number (high)");
         test_state := fail;
       end if;
-      if TXB1D2 != 62 then
+      if TXB1D2 != 96 then
         report("flim_feedback_test: Sent wrong Node Number (low)");
         test_state := fail;
       end if;
-      if TXB1D3 != 63 then
+      if TXB1D3 != 101 then
         report("flim_feedback_test: Sent wrong Event Number (high)");
         test_state := fail;
       end if;
-      if TXB1D4 != 64 then
+      if TXB1D4 != 70 then
         report("flim_feedback_test: Sent wrong Event Number (low)");
         test_state := fail;
       end if;
