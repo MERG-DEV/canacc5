@@ -6,7 +6,7 @@ testbench for "PIC18F2480" is
 begin
   test_timeout: process is
     begin
-      wait for 198 ms;
+      wait for 265 ms;
       report("flim_teach_feedback_test: TIMEOUT");
       report(PC); -- Crashes simulator, MDB will report current source line
       PC <= 0;
@@ -25,6 +25,52 @@ begin
       --
       wait until RB6 == '1'; -- Booted into FLiM
       report("flim_teach_feedback_test: Yellow LED (FLiM) on");
+      --
+      report("flim_teach_feedback_test: Long on 0x0220,0x02112 do nothing");
+      RXB0D0 <= 16#90#;      -- ACON, CBUS long on
+      RXB0D1 <= 2;           -- NN high
+      RXB0D2 <= 32;          -- NN low
+      RXB0D3 <= 33;          -- Event number high
+      RXB0D4 <= 18;          -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait on PORTC for 10 ms;
+      if PORTC != 0 then
+        report("flim_teach_feedback_test: Unexpected output change");
+        test_state := fail;
+      end if;        
+      --
+      report("flim_teach_feedback_test: Long on 0x0660,0x6546 do nothing");
+      RXB0D0 <= 16#90#;      -- ACON, CBUS long on
+      RXB0D1 <= 6;           -- NN high
+      RXB0D2 <= 96;          -- NN low
+      RXB0D3 <= 101;         -- Event number high
+      RXB0D4 <= 70;          -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait on PORTC for 10 ms;
+      if PORTC != 0 then
+        report("flim_teach_feedback_test: Unexpected output change");
+        test_state := fail;
+      end if;        
       --
       report("flim_teach_feedback_test: Short on 0x0201,0x0204, output 2 on");
       RXB0D0 <= 16#98#;      -- ASON, CBUS short on
@@ -131,10 +177,43 @@ begin
       RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
       RXB0D1 <= 2;         -- NN high
       RXB0D2 <= 32;        -- NN low
-      RXB0D3 <= 33;
-      RXB0D4 <= 18;
+      RXB0D3 <= 33;        -- Event number high
+      RXB0D4 <= 18;        -- Event number low
       RXB0D5 <= 3;         -- Event variable index
       RXB0D6 <= 16#98#;    -- Feedback enabled, normal, output 2
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until TXB1CON.TXREQ == '1';
+      if TXB1D0 != 16#59# then -- WRACK, CBUS write acknowledge response
+        report("flim_teach_feedback_test: Sent wrong response");
+        test_state := fail;
+      end if;
+      if TXB1D1 != 4 then
+        report("flim_teach_feedback_test: Sent wrong Node Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D2 != 2 then
+        report("flim_teach_feedback_test: Sent wrong Node Number (low)");
+        test_state := fail;
+      end if;
+      --
+      report("flim_teach_feedback_test: Set output 1 on, on 0x0220,0x02112");
+      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
+      RXB0D1 <= 2;         -- NN high
+      RXB0D2 <= 32;        -- NN low
+      RXB0D3 <= 33;        -- Event number high
+      RXB0D4 <= 18;        -- Event number low
+      RXB0D5 <= 1;         -- Event variable index
+      RXB0D6 <= 16#80#;    -- Output 1
       RXB0CON.RXFUL <= '1';
       RXB0DLC.DLC3 <= '1';
       COMSTAT <= 16#80#;
@@ -164,10 +243,43 @@ begin
       RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
       RXB0D1 <= 6;         -- NN high
       RXB0D2 <= 96;        -- NN low
-      RXB0D3 <= 101;
-      RXB0D4 <= 70;
+      RXB0D3 <= 101;       -- Event number high
+      RXB0D4 <= 70;        -- Event number low
       RXB0D5 <= 3;         -- Event variable index
       RXB0D6 <= 16#C8#;    -- Feedback enabled, inverted, output 6
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until TXB1CON.TXREQ == '1';
+      if TXB1D0 != 16#59# then -- WRACK, CBUS write acknowledge response
+        report("flim_teach_feedback_test: Sent wrong response");
+        test_state := fail;
+      end if;
+      if TXB1D1 != 4 then
+        report("flim_teach_feedback_test: Sent wrong Node Number (high)");
+        test_state := fail;
+      end if;
+      if TXB1D2 != 2 then
+        report("flim_teach_feedback_test: Sent wrong Node Number (low)");
+        test_state := fail;
+      end if;
+      --
+      report("flim_teach_feedback_test: Set output 1 on, on 0x0660,0x6546");
+      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
+      RXB0D1 <= 6;         -- NN high
+      RXB0D2 <= 96;        -- NN low
+      RXB0D3 <= 101;       -- Event number high
+      RXB0D4 <= 70;        -- Event number low
+      RXB0D5 <= 1;         -- Event variable index
+      RXB0D6 <= 16#80#;    -- Output 1
       RXB0CON.RXFUL <= '1';
       RXB0DLC.DLC3 <= '1';
       COMSTAT <= 16#80#;
@@ -333,6 +445,57 @@ begin
         report("flim_teach_feedback_test: Sent wrong Event Number (low)");
         test_state := fail;
       end if;
+      --
+      --
+      report("flim_teach_feedback_test: Long on 0x0220,0x02112 output 1 on");
+      RXB0D0 <= 16#90#;      -- ACON, CBUS long on
+      RXB0D1 <= 2;           -- NN high
+      RXB0D2 <= 32;          -- NN low
+      RXB0D3 <= 33;          -- Event number high
+      RXB0D4 <= 18;          -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until PORTC == 198 for 10 ms;
+      if PORTC != 198 then
+        report("flim_teach_feedback_test: Output 1 not turned on");
+        test_state := fail;
+      else
+        report("flim_teach_feedback_test: Output 1 on");
+      end if;        
+      --
+      report("flim_teach_feedback_test: Long off 0x0660,0x6546 output 1 off");
+      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
+      RXB0D1 <= 6;           -- NN high
+      RXB0D2 <= 96;          -- NN low
+      RXB0D3 <= 101;         -- Event number high
+      RXB0D4 <= 70;          -- Event number low
+      RXB0CON.RXFUL <= '1';
+      RXB0DLC.DLC3 <= '1';
+      COMSTAT <= 16#80#;
+      CANSTAT <= 16#0C#;
+      PIR3.RXB0IF <= '1';
+      --
+      TXB1CON.TXREQ <= '0';
+      --
+      wait until RXB0CON.RXFUL == '0';
+      COMSTAT <= 0;
+      --
+      wait until PORTC == 70 for 10 ms;
+      if PORTC != 70 then
+        report("flim_teach_feedback_test: Output 1 not turned off");
+        test_state := fail;
+      else
+        report("flim_teach_feedback_test: Output 1 off");
+      end if;        
       --
       if test_state == pass then
         report("flim_teach_feedback_test: PASS");
