@@ -128,15 +128,15 @@ begin
         report("slim_feedback_test: Missing output 6 feedback event");
         test_state := fail;
       end if;
-      if TXB1D0 != 16#91# then -- ACON, CBUS long off (6 feedback is inverted)
+      if TXB1D0 != 16#99# then -- ASOF, CBUS short off (6 feedback is inverted)
         report("slim_feedback_test: Sent wrong event");
         test_state := fail;
       end if;
-      if TXB1D1 != 6 then
+      if TXB1D1 != 0 then
         report("slim_feedback_test: Sent wrong Node Number (high)");
         test_state := fail;
       end if;
-      if TXB1D2 != 96 then
+      if TXB1D2 != 0 then
         report("slim_feedback_test: Sent wrong Node Number (low)");
         test_state := fail;
       end if;
