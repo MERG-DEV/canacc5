@@ -26,7 +26,7 @@ begin
       wait until RB6 == '1'; -- Booted into FLiM
       report("flim_teach_feedback_test: Yellow LED (FLiM) on");
       --
-      report("flim_teach_feedback_test: Long on 0x0220,0x02112 do nothing");
+      report("flim_teach_feedback_test: Long on 0x0220,0x2112 do nothing");
       RXB0D0 <= 16#90#;      -- ACON, CBUS long on
       RXB0D1 <= 2;           -- NN high
       RXB0D2 <= 32;          -- NN low
@@ -173,7 +173,7 @@ begin
         wait until Datmode == 24;
       end if;
       --
-      report("flim_teach_feedback_test: Set output 2 feedback, on 0x0220,0x02112");
+      report("flim_teach_feedback_test: Set output 2 feedback, on 0x0220,0x2112");
       RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
       RXB0D1 <= 2;         -- NN high
       RXB0D2 <= 32;        -- NN low
@@ -206,7 +206,7 @@ begin
         test_state := fail;
       end if;
       --
-      report("flim_teach_feedback_test: Set output 1 on, on 0x0220,0x02112");
+      report("flim_teach_feedback_test: Set output 1 on, on 0x0220,0x2112");
       RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
       RXB0D1 <= 2;         -- NN high
       RXB0D2 <= 32;        -- NN low
@@ -447,7 +447,7 @@ begin
       end if;
       --
       --
-      report("flim_teach_feedback_test: Long on 0x0220,0x02112 output 1 on");
+      report("flim_teach_feedback_test: Long on 0x0220,0x2112 output 1 on");
       RXB0D0 <= 16#90#;      -- ACON, CBUS long on
       RXB0D1 <= 2;           -- NN high
       RXB0D2 <= 32;          -- NN low
