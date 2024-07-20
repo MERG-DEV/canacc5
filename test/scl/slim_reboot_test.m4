@@ -1,125 +1,55 @@
-configuration for "PIC18F2480" is
-  shared label    _CANInit;
-  shared label    _CANMain;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 902 ms;
-      report("slim_reboot_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_reboot_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_reboot_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_reboot_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(902, label _CANInit, label _CANMain)
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_reboot_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      report("slim_reboot_test: Reboot request addressed to node 0x0402");
-      RXB0D0 <= 16#5C#; -- BOOTM, CBUS bootload mode request
-      RXB0D1 <= 4;      -- NN high
-      RXB0D2 <= 2;      -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Reboot request addressed to node 0x0402");
+      rx_data(OPC_BOOT, 4, 2) -- BOOTM, CBUS bootload mode request
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      wait until RB7 == '0' for 6 ms; -- Wait for LED output reset on reboot
-      if RB7 == '0' then
-        report("slim_reboot_test: Unexpected reboot");
+      wait until slim_led == '0' for 6 ms; -- Wait for LED output reset on reboot
+      if slim_led == '0' then
+        report("test_name: Unexpected reboot");
         test_state := fail;
       end if;
       --
-      report("slim_reboot_test: Reboot request addressed to node 0x0400");
-      RXB0D0 <= 16#5C#; -- BOOTM, CBUS bootload mode request
-      RXB0D1 <= 4;      -- NN high
-      RXB0D2 <= 0;      -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Reboot request addressed to node 0x0400");
+      rx_data(OPC_BOOT, 4, 0) -- BOOTM, CBUS bootload mode request
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      wait until RB7 == '0' for 6 ms; -- Wait for LED output reset on reboot
-      if RB7 == '0' then
-        report("slim_reboot_test: Unexpected reboot");
+      wait until slim_led == '0' for 6 ms; -- Wait for LED output reset on reboot
+      if slim_led == '0' then
+        report("test_name: Unexpected reboot");
         test_state := fail;
       end if;
       --
-      report("slim_reboot_test: Reboot request addressed to node 0x0002");
-      RXB0D0 <= 16#5C#; -- BOOTM, CBUS bootload mode request
-      RXB0D1 <= 0;      -- NN high
-      RXB0D2 <= 2;      -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Reboot request addressed to node 0x0002");
+      rx_data(OPC_BOOT, 0, 2) -- BOOTM, CBUS bootload mode request
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      wait until RB7 == '0' for 6 ms; -- Wait for LED output reset on reboot
-      if RB7 == '0' then
-        report("slim_reboot_test: Unexpected reboot");
+      wait until slim_led == '0' for 6 ms; -- Wait for LED output reset on reboot
+      if slim_led == '0' then
+        report("test_name: Unexpected reboot");
         test_state := fail;
       end if;
       --
-      report("slim_reboot_test: Reboot request addressed to node 0x0000");
-      RXB0D0 <= 16#5C#; -- BOOTM, CBUS bootload mode request
-      RXB0D1 <= 0;      -- NN high
-      RXB0D2 <= 0;      -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Reboot request addressed to node 0x0000");
+      rx_data(OPC_BOOT, 0, 0) -- BOOTM, CBUS bootload mode request
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      wait until RB7 == '0'; -- Wait for LED output reset on reboot
-      report("slim_reboot_test: Reboot");
+      wait until slim_led == '0'; -- Wait for LED output reset on reboot
+      report("test_name: Reboot");
       --
       wait until PC == 0;
       PC <= _CANInit;
       --
       wait until PC == _CANMain;
-      report("slim_reboot_test: Reached _CANMain, in bootloader");
+      report("test_name: Reached _CANMain, in bootloader");
       --
-      if test_state == pass then
-        report("slim_reboot_test: PASS");
-      else
-        report("slim_reboot_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_reboot_test;
-end testbench;
+end_of_test

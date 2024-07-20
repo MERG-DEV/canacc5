@@ -1,0 +1,51 @@
+divert(-1)
+changecom(--)
+changequote({,})
+
+define(processor_type, PIC18F2480)
+
+define(timeout_process,
+       test_timeout: process is
+         begin
+           wait for $1 ms;
+           report("test_name: TIMEOUT");
+           report(PC); -- Crashes simulator, MDB will report current source line
+           stop_test
+         end process test_timeout;)
+
+define(beginning_of_test,
+       configuration for "processor_type" is
+         shared variable Datmode;
+         {ifelse( $2, {}, {--}, shared $2;)}
+         {ifelse( $3, {}, {--}, shared $3;)}
+       end configuration;
+       --
+       testbench for "processor_type" is
+       begin
+         timeout_process($1)
+           --
+         test_name: process is
+           type test_result is (pass, fail);
+           variable test_state   : test_result;
+           variable idle_datmode : integer;)
+
+define(begin_test,
+       begin
+         report("test_name: START");
+         test_state := pass;)
+
+define(stop_test,
+       PC <= 0;
+       wait;)
+
+define(end_of_test,
+         if test_state == pass then
+           report("test_name: PASS");
+         else
+           report("test_name: FAIL");
+         end if;
+         stop_test
+         end process test_name;
+       end testbench;)
+
+divert(0)dnl

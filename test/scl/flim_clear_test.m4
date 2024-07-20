@@ -1,309 +1,59 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 16934 ms;
-      report("flim_clear_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_clear_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    file     event_file : text;
-    variable file_stat  : file_open_status;
-    variable file_line  : string;
-    begin
-      report("flim_clear_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, flim_clear_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(16934)
+    data_file_variables
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_clear_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_clear_test: Reject clear events request");
-      RXB0D0 <= 16#55#;    -- NNCLR, CBUS clear events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Reject clear events request");
+      rx_data(OPC_NNCLR, 4, 2) -- NNCLR, CBUS clear events to node 4 2
+      tx_wait_for_node_message(OPC_CMDERR, 4, 2, 2, error number) -- CMDERR, CBUS error response
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Check available event space");
+      rx_data(OPC_NNEVN, 4, 2) -- NNEVN, CBUS request available event space to node 4 2
+      tx_wait_for_node_message(OPC_EVNLF, 4, 2, 123) -- EVLNF, CBUS available event space response
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Check number of stored events");
+      rx_data(OPC_RQEVN, 4, 2) -- RQEVN, CBUS request number of stored events to node 4 2
+      tx_wait_for_node_message(OPC_NUMEV, 4, 2, 5, number of stored events) -- NNEVN, CBUS number of stored events response
       --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("flim_teach_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_teach_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_teach_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 2 then -- Not in learn event mode
-        report("flim_teach_test: Sent wrong error number");
-        test_state := fail;
-      end if;
+      report("test_name: Enter learn mode");
+      rx_data(OPC_NNLRN, 4, 2) -- NNLRN, CBUS enter learn mode to node 4 2
+      wait for 1 ms; -- FIXME Next packet lost if previous not yet processed
       --
-      report("flim_clear_test: Check available event space");
-      RXB0D0 <= 16#56#;    -- NNEVN, CBUS request available event space
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Clear events");
+      rx_data(OPC_NNCLR, 4, 2) -- NNCLR, CBUS clear events to node 4 2
+      tx_wait_for_node_message(OPC_WRACK, 4, 2) -- WRACK, CBUS write acknowledge response
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Exit learn mode");
+      rx_data(OPC_NNULN, 4, 2) -- NNULN, exit learn mode to node 4 2
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Reheck available event space");
+      rx_data(OPC_NNEVN, 4, 2) -- NNEVN, CBUS request available event space to node 4 2
+      tx_wait_for_node_message(OPC_EVNLF, 4, 2, 128) -- EVLNF, CBUS available event space response
       --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#70# then -- EVLNF, CBUS available event space response
-        report("flim_clear_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_clear_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_clear_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 123 then
-        report("flim_clear_test: Sent wrong available event space");
-        test_state := fail;
-      end if;
+      report("test_name: Recheck number of stored events");
+      rx_data(OPC_RQEVN, 4, 2) -- RQEVN, CBUS request number of stored events to node 4 2
+      tx_wait_for_node_message(OPC_NUMEV, 4, 2, 0, number of stored events) -- NNEVN, CBUS number of stored events response
       --
-      report("flim_clear_test: Check number of stored events");
-      RXB0D0 <= 16#58#;    -- RQEVN, CBUS request number of stored events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Check events are now ignored");
+      data_file_open(learnt_events.dat)
       --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#74# then -- NNEVN, CBUS number of stored events response
-        report("flim_clear_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_clear_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_clear_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 5 then
-        report("flim_clear_test: Sent wrong number of stored events");
-        test_state := fail;
-      end if;
-      --
-      report("flim_clear_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if Datmode != 24 then
-        wait until Datmode == 24;
-      end if;
-      --
-      report("flim_clear_test: Clear events");
-      RXB0D0 <= 16#55#;    -- NNCLR, CBUS clear events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#59# then -- WRACK, CBUS write acknowledge response
-        report("flim_clear_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_clear_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_clear_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      --
-      report("flim_clear_test: Exit learn mode");
-      RXB0D0 <= 16#54#;    -- NNULN, exit learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if Datmode != 8 then
-        wait until Datmode == 8;
-      end if;
-      --
-      report("flim_clear_test: Reheck available event space");
-      RXB0D0 <= 16#56#;    -- NNEVN, CBUS request available event space
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#70# then -- EVLNF, CBUS available event space response
-        report("flim_clear_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_clear_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_clear_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 128 then
-        report("flim_clear_test: Sent wrong available event space");
-        test_state := fail;
-      end if;
-      --
-      report("flim_clear_test: Reheck number of stored events");
-      RXB0D0 <= 16#58#;    -- RQEVN, CBUS request number of stored events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#74# then -- NNEVN, CBUS number of stored events response
-        report("flim_clear_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_clear_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_clear_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 0 then
-        report("flim_clear_test: Sent wrong number of stored events");
-        test_state := fail;
-      end if;
-      --
-      file_open(file_stat, event_file, "./data/learnt_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_clear_test: Failed to open event data file");
-        report("flim_clear_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_clear_test: Check events are now ignored");
-      while endfile(event_file) == false loop
-        readline(event_file, file_line);
-        report(file_line);
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        if RXB0CON.RXFUL != '0' then
-          wait until RXB0CON.RXFUL == '0';
-        end if;
-        COMSTAT <= 0;
-        --
-        readline(event_file, file_line);
-        while match(file_line, "Done") == false loop
-          readline(event_file, file_line);
-        end loop;
-        --
-        wait until PORTC != 0 for 1005 ms;
-        if PORTC != 0 then
-          report("flim_clear_test: Unexpected trigger");
-          test_state := fail;
-          wait until PORTC == 0;
-        end if;
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_event
+        data_file_skip_till_done
+        output_wait_for_no_change(outputs_port, 0, 1005)
       end loop;
       --
-      if test_state == pass then
-        report("flim_clear_test: PASS");
-      else
-        report("flim_clear_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_clear_test;
-end testbench;
+end_of_test

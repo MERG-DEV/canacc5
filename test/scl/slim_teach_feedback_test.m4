@@ -1,280 +1,82 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 1615 ms;
-      report("slim_teach_feedback_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_teach_feedback_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_teach_feedback_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_teach_feedback_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(1615)
+    variable last_output : integer;
+    begin_test
+      last_output := 0;
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_teach_feedback_test: Green LED (SLiM) on");
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      report("slim_teach_feedback_test: Short on 0x0201,0x0204, output 2 on");
-      RXB0D0 <= 16#98#;      -- ASON, CBUS short on
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 2;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      wait_until_slim -- Booted into SLiM
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Short on 0x0201,0x0204, output 2 on");
+      rx_data(OPC_ASON, 2, 1, 2, 4)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      output_wait_for_change(outputs_port, last_output, 64, "test_name: Output 2 on")
+      last_output := outputs_port;
       --
-      wait on PORTC;
+      tx_check_for_no_message(5, output 2 feedback)
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 2 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 2 feedback event");
-        test_state := fail;
-      end if;
+      report("test_name: Long off 0x0201, 0x0604, output 7 on");
+      rx_data(OPC_ACOF, 2, 1, 6, 4)
       --
-      report("slim_teach_feedback_test: Long off 0x0201,0x0604, output 7 on");
-      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 6;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      output_wait_for_change(outputs_port, last_output, 66, "test_name: Outputs 2 7 on")
+      last_output := outputs_port;
       --
-      TXB1CON.TXREQ <= '0';
+      tx_check_for_no_message(5, output 7 feedback);
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Short off 0x0909, 0x0402, outputs 6 7 on");
+      rx_data(OPC_ASOF, 9, 9, 4, 2)
       --
-      wait on PORTC;
+      output_wait_for_change(outputs_port, last_output, 64, "test_name: Output 2 on 7 off")
+      last_output := outputs_port;
+      output_wait_for_change(outputs_port, last_output, 70, "test_name: Outputs 2 6 7 on")
+      last_output := outputs_port;
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 7 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 7 feedback event");
-        test_state := fail;
-      end if;
+      tx_check_for_no_message(5, output 6 or 7 feedback);
       --
-      report("slim_teach_feedback_test: Short off 0x0909,0x0402, output 6 & 7 on");
-      RXB0D0 <= 16#99#;      -- ASOF, CBUS short off
-      RXB0D1 <= 9;           -- NN high
-      RXB0D2 <= 9;           -- NN low
-      RXB0D3 <= 4;           -- Event number high
-      RXB0D4 <= 2;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Enter learn mode");
+      enter_learn_mode(0, 0) -- Node 0x0000
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Set output 2 feedback, on 0x0220,0x02112");
+      rx_data(OPC_EVLRN, 2, 32, 33, 18, 3, 16#98#) -- EVLRN, CBUS learn event, event variable 3, feedback normal for output 2
+      tx_check_no_message(776);
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Set output 6 feedback, off 0x0660,0x6546");
+      rx_data(OPC_EVLRN, 6, 96, 101, 70, 3, 16#C8#) -- EVLRN, CBUS learn event, event variable 3, feedback inverted for output 6
+      tx_check_no_message(776);
       --
-      wait on PORTC;
+      report("test_name: Exit learn mode");
+      exit_learn_mode(0, 0) -- Node 0x0000
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 6 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 6 feedback event");
-        test_state := fail;
-      end if;
+      report("test_name: Short off 0x0201,0x0204, output 2 off");
+      rx_data(OPC_ASOF, 2, 1, 2, 4)
       --
-      report("slim_teach_feedback_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      output_wait_for_change(outputs_port, last_output, 6, "test_name: Output 2 off 6 7 on")
+      last_output := outputs_port;
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      tx_check_for_no_message(5, output 2 feedback)
       --
-      report("slim_teach_feedback_test: Set output 2 feedback, on 0x0220,0x02112");
-      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
-      RXB0D1 <= 2;         -- NN high
-      RXB0D2 <= 32;        -- NN low
-      RXB0D3 <= 33;
-      RXB0D4 <= 18;
-      RXB0D5 <= 3;         -- Event variable index
-      RXB0D6 <= 16#98#;    -- Feedback enabled, normal, output 2
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Long on 0x0201,0x0604, output 7 off");
+      rx_data(OPC_ACON, 2, 1, 6, 4)
       --
-      TXB1CON.TXREQ <= '0';
+      output_wait_for_change(outputs_port, last_output, 4, "test_name: Output 7 off 6 on")
+      last_output := outputs_port;
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      tx_check_for_no_message(5, output 7 feedback)
       --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected response");
-        test_state := fail;
-      end if;
+      report("test_name: Short on 0x0909,0x0402, outputs 6 7 off");
+      rx_data(OPC_ASON, 9, 9, 4, 2)
       --
-      report("slim_teach_feedback_test: Set output 6 feedback, off 0x0660,0x6546");
-      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
-      RXB0D1 <= 6;         -- NN high
-      RXB0D2 <= 96;        -- NN low
-      RXB0D3 <= 101;
-      RXB0D4 <= 70;
-      RXB0D5 <= 3;         -- Event variable index
-      RXB0D6 <= 16#C8#;    -- Feedback enabled, inverted, output 6
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      output_wait_for_change(outputs_port, last_output, 0, "test_name: Output 6 off")
+     --
+      tx_check_for_no_message(5, output 6 or 7 feedback)
       --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_feedback_test: Exit learn mode");
-      RXB0D0 <= 16#54#;    -- NNULN, exit learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      report("slim_teach_feedback_test: Short on 0x0201,0x0204, output 2 on");
-      RXB0D0 <= 16#98#;      -- ASON, CBUS short on
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 2;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait on PORTC;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 2 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 2 feedback event");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_feedback_test: Long off 0x0201,0x0604, output 7 on");
-      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 6;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait on PORTC;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 7 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 7 feedback event");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_feedback_test: Short off 0x0909,0x0402, output 6 & 7 on");
-      RXB0D0 <= 16#99#;      -- ASOF, CBUS short off
-      RXB0D1 <= 9;           -- NN high
-      RXB0D2 <= 9;           -- NN low
-      RXB0D3 <= 4;           -- Event number high
-      RXB0D4 <= 2;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait on PORTC;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_feedback_test: Waiting for output 6 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_feedback_test: Unexpected output 6 feedback event");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("slim_teach_feedback_test: PASS");
-      else
-        report("slim_teach_feedback_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_teach_feedback_test;
-end testbench;
+end_of_test

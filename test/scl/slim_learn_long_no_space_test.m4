@@ -1,117 +1,41 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 333 ms;
-      report("slim_learn_long_no_space_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_learn_long_no_space_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_learn_long_no_space_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_learn_long_no_space_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(333)
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_learn_long_no_space_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SliM
       --
       -- Learn events for output 2
-      RA1 <= '0'; -- Learn on
-      RB0 <= '0'; -- Sel 0 on
-      RB1 <= '1'; -- Sel 1 off
-      RB4 <= '1'; -- Sel 2 off
-      RB5 <= '1'; -- Polarity normal, On event => A, Off event => B
+      set_dolearn_on
+      select_output_2
+      set_polarity_normal -- On event => A, Off event => B
       --
-      report("slim_learn_long_no_space_test: Long On 0x0102, 0x0180");
-      RXB0D0 <= 16#90#;    -- ACON, CBUS accessory on
-      RXB0D1 <= 1;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0D3 <= 1;
-      RXB0D4 <= 128;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Long On 0x0102, 0x0180");
+      rx_data(OPC_ACON, 1, 2, 1, 128)
+      wait_until_idle
+      tx_check_no_message -- Test if unexpected response sent
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Learnt 128 events");
       --
-      if Datmode != 0 then
-        wait until Datmode == 0;
-      end if;
+      report("test_name: Long On 0x0102, 0x0281");
+      rx_data(OPC_ACON, 1, 2, 2, 129)
+      wait_until_idle
       --
-      if TXB1CON.TXREQ == '1' then
-        report("slim_learn_long_no_space_test: Unexpected message");
-        test_state := fail;
-      end if;
-      --
-      report("slim_learn_long_no_space_test: Learnt 128 events");
-      --
-      report("slim_learn_long_no_space_test: Long On 0x0102, 0x0181");
-      RXB0D0 <= 16#90#;    -- ACON, CBUS accessory on
-      RXB0D1 <= 1;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0D3 <= 2;
-      RXB0D4 <= 129;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if Datmode != 0 then
-        wait until Datmode == 0;
-      end if;
-      --
-      report("slim_learn_long_no_space_test: Checking for CMDERR");
-      if TXB1CON.TXREQ != '1' then
-        report("slim_learn_long_no_space_test: Awaiting CMDERR");
-        wait until TXB1CON.TXREQ == '1';
-      end if;
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("slim_learn_long_no_space_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 0 then
-        report("slim_learn_long_no_space_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 0 then
-        report("slim_learn_long_no_space_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 4 then -- No event space left
-        report("slim_learn_long_no_space_test: Sent wrong error number");
-        test_state := fail;
-      end if;
+      report("test_name: Checking for CMDERR");
+      tx_wait_for_cmderr_message(0, 0, 4)
       --
       -- FIXME yellow LED should flash
-      --if RB6 == '0' then
-      --  wait until RB6 == '1';
+      --if flim_led == '0' then
+      --  wait until flim_led == '1';
       --end if;
-      --wait until RB6 == '1';
+      --wait until flim_led == '1';
       --
-      if test_state == pass then
-        report("slim_learn_long_no_space_test: PASS");
-      else
-        report("slim_learn_long_no_space_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_learn_long_no_space_test;
-end testbench;
+end_of_test

@@ -1,251 +1,64 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 25 ms;
-      report("flim_read_events_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_read_events_test: process is
-    type test_result is (pass, fail);
-    variable test_state     : test_result;
-    file     event_file     : text;
-    variable file_stat      : file_open_status;
-    variable file_line      : string;
-    variable node_hi        : integer;
-    variable node_lo        : integer;
-    variable event_hi       : integer;
-    variable event_lo       : integer;
-    variable variable_index : integer;
-    variable variable_value : integer;
-    begin
-      report("flim_read_events_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, flim_read_events_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(25)
+    data_file_variables
+    variable node_hi  : integer;
+    variable node_lo  : integer;
+    variable event_hi : integer;
+    variable event_lo : integer;
+    variable ev_index : integer;
+    variable ev_value : integer;
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_read_events_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_read_events_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Enter learn mode");
+      enter_learn_mode(4, 2) -- Node 0x0402
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      file_open(file_stat, event_file, "./data/stored_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_read_events_test: Failed to open event data file");
-        report("flim_read_events_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_read_events_test: Read events");
-      while endfile(event_file) == false loop
-        readline(event_file, file_line);
-        report(file_line);
+      report("test_name: Read events");
+      data_file_open(stored_events.dat)
+       --
+      while endfile(data_file) == false loop
+        data_file_report_line
         --
-        readline(event_file, file_line);
-        read(file_line, node_hi);
-        readline(event_file, file_line);
-        read(file_line, node_lo);
-        readline(event_file, file_line);
-        read(file_line, event_hi);
-        readline(event_file, file_line);
-        read(file_line, event_lo);
+        data_file_read(node_hi)
+        data_file_read(node_lo)
+        data_file_read(event_hi)
+        data_file_read(event_lo)
         --
-        readline(event_file, file_line);
+        readline(data_file, file_line);
         while match(file_line, "Done") == false loop
           report(file_line);
-          RXB0D0 <= 16#B2#; -- REQEV, CBUS Read event variable request
-          RXB0D1 <= node_hi;
-          RXB0D2 <= node_lo;
-          RXB0D3 <= event_hi;
-          RXB0D4 <= event_lo;
-          read(file_line, variable_index);
-          RXB0D5 <= variable_index;
-          RXB0CON.RXFUL <= '1';
-          RXB0DLC.DLC3 <= '1';
-          COMSTAT <= 16#80#;
-          CANSTAT <= 16#0C#;
-          PIR3.RXB0IF <= '1';
+          read(file_line, ev_index);
+          rx_data(OPC_REQEV, node_hi, node_lo, event_hi, event_lo, ev_index) -- REQEV, CBUS Read event variable request
           --
-          if RXB0CON.RXFUL != '0' then
-            wait until RXB0CON.RXFUL == '0';
-          end if;
-          COMSTAT <= 0;
+          data_file_report_line
+          read(file_line, ev_value);
+          tx_wait_for_node_message(OPC_EVANS, node_hi, node_lo, event_hi, EN high, event_lo, EN low, ev_index, Event Variable Index, ev_value, Event Variable value)
           --
-          TXB1CON.TXREQ <= '0';
-          wait until TXB1CON.TXREQ == '1';
-          if TXB1D0 != 16#D3# then -- EVANS, CBUS event variable response
-            report("flim_read_events_test: Sent wrong response");
-            test_state := fail;
-          end if;
-          if TXB1D1 != node_hi then
-            report("flim_read_events_test: Sent wrong Node Number (high)");
-            test_state := fail;
-          end if;
-          if TXB1D2 != node_lo then
-            report("flim_read_events_test: Sent wrong Node Number (low)");
-            test_state := fail;
-          end if;
-          if TXB1D3 != event_hi then
-            report("flim_read_events_test: Sent wrong Event Number (high)");
-            test_state := fail;
-          end if;
-          if TXB1D4 != event_lo then
-            report("flim_read_events_test: Sent wrong Event Number (low)");
-            test_state := fail;
-          end if;
-          if TXB1D5 != variable_index then
-            report("flim_read_events_test: Sent wrong Event Variable Index");
-            test_state := fail;
-          end if;
-          readline(event_file, file_line);
-          read(file_line, variable_value);
-          if TXB1D6 != variable_value then
-            report("flim_read_events_test: Sent wrong Event Variable value");
-            test_state := fail;
-          end if;
-          --
-          readline(event_file, file_line);
+          readline(data_file, file_line); -- Get next event variable index
         end loop;
       end loop;
       --
-      report("flim_read_events_test: Event Variable index too low");
-      RXB0D0 <= 16#B2#;    -- REQEV, CBUS Read event variable request
-      RXB0D1 <= node_hi;
-      RXB0D2 <= node_lo;
-      RXB0D3 <= event_hi;
-      RXB0D4 <= event_lo;
-      RXB0D5 <= 0;         -- Event variable index, out of range
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Event Variable index too low");
+      rx_data(OPC_REQEV, node_hi, node_lo, event_hi, event_lo, 0) -- REQEV, CBUS Read event variable request
+      tx_wait_for_cmderr_message(4, 2, CMDERR_INV_EV_IDX)
       --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
+      report("test_name: Event Variable index too high");
+      rx_data(OPC_REQEV, node_hi, node_lo, event_hi, event_lo, 4) -- REQEV, CBUS Read event variable request
+      tx_wait_for_cmderr_message(4, 2, CMDERR_INV_EV_IDX)
       --
-      TXB1CON.TXREQ <= '0';
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("flim_read_events_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_read_events_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_read_events_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 6 then -- Invalid event variable index
-        report("flim_read_events_test: Sent wrong error number");
-        test_state := fail;
-      end if;
+      report("test_name: Read unknown event");
+      rx_data(OPC_REQEV, 9, 8, 7, 6, 1) -- REQEV, CBUS Read event variable request
+      tx_wait_for_cmderr_message(4, 2, CMDERR_NO_EV)
       --
-      report("flim_read_events_test: Event Variable index too high");
-      RXB0D0 <= 16#B2#;    -- REQEV, CBUS Read event variable request
-      RXB0D1 <= node_hi;
-      RXB0D2 <= node_lo;
-      RXB0D3 <= event_hi;
-      RXB0D4 <= event_lo;
-      RXB0D5 <= 4;         -- Event variable index, out of range
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      TXB1CON.TXREQ <= '0';
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("flim_read_events_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_read_events_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_read_events_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 6 then -- Invalid event variable index
-        report("flim_read_events_test: Sent wrong error number");
-        test_state := fail;
-      end if;
-      --
-      report("flim_read_events_test: Read unknown event");
-      RXB0D0 <= 16#B2#;    -- REQEV, CBUS Read event variable request
-      RXB0D1 <= 9;
-      RXB0D2 <= 8;
-      RXB0D3 <= 7;
-      RXB0D4 <= 6;
-      RXB0D5 <= 1;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      TXB1CON.TXREQ <= '0';
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("flim_read_events_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_read_events_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_read_events_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 5 then -- Event not found
-        report("flim_read_events_test: Sent wrong error number");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("flim_read_events_test: PASS");
-      else
-        report("flim_read_events_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_read_events_test;
-end testbench;
+end_of_test

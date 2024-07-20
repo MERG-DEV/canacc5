@@ -1,116 +1,44 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 23000 ms;
-      report("slim_no_can_id_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_no_can_id_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
+define(test_name, slim_no_can_id_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(23000)
     variable test_sidh : integer;
     variable test_sidl : integer;
-    begin
-      report("slim_no_can_id_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_no_can_id_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      RA2 <= '0';
-      report("slim_no_can_id_test: Setup button pressed");
-      wait until RB7 == '0';
-      report("slim_no_can_id_test: FLiM setup started");
+      set_setup_on
+      report("test_name: Setup button pressed");
+      wait until slim_led == '0';
+      report("test_name: FLiM setup started");
+      set_setup_off
+      report("test_name: Setup button released");
       --
-      RA2 <= '1';
-      report("slim_no_can_id_test: Setup button released");
-      --
-      report("slim_no_can_id_test: Awaiting RTR");
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1DLC.TXRTR == '1' then
-        report("slim_no_can_id_test: RTR request");
-      else
-        report("slim_no_can_id_test: not RTR request");
-        test_state := fail;
-      end if;
-      if TXB1SIDH != 16#BF# then
-        report("slim_no_can_id_test: Incorrect default SIDH");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#E0# then
-        report("slim_no_can_id_test: Incorrect default SIDL");
-        test_state := fail;
-      end if;
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Awaiting RTR");
+      tx_rtr
+      tx_check_can_id(initial, 16#BF#, 16#E0#)
       --
       test_sidh := 0;
       test_sidl := 16#20#;
       while test_sidh < 16#10# loop
         while test_sidl < 16#100# loop
-          RXB0SIDH <= test_sidh;
-          RXB0SIDL <= test_sidl;
-          RXB0CON.RXFUL <= '1';
-          RXB0DLC <= 0;
-          COMSTAT <= 16#80#;
-          CANSTAT <= 16#0C#;
-          PIR3.RXB0IF <= '1';
-          --
-          if RXB0CON.RXFUL != '0' then
-            wait until RXB0CON.RXFUL == '0';
-          end if;
-          COMSTAT <= 0;
-          --
+          rx_sid(test_sidh, test_sidl)
           test_sidl := test_sidl + 16#20#;
         end loop;
         test_sidh := test_sidh + 1;
         test_sidl := 0;
       end loop;
-      report("slim_no_can_id_test: RTR, all CAN Ids taken");
+      report("test_name: RTR, all CAN Ids taken");
       --
-      TXB1CON.TXREQ <= '0';
-      report("slim_no_can_id_test: Awaiting CMDERR");
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1SIDH != 16#BF# then
-        report("slim_no_can_id_test: Unexpected SIDH change");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#E0# then
-        report("slim_no_can_id_test: Unexpected SIDH change");
-        test_state := fail;
-      end if;
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("slim_no_can_id_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 0 then
-        report("slim_no_can_id_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 0 then
-        report("slim_no_can_id_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 7 then -- Invalid event
-        report("slim_no_can_id_test: Sent wrong error number");
-        test_state := fail;
-      end if;
+      report("test_name: Awaiting CMDERR");
+      tx_wait_for_cmderr_message(0, 0, CMDERR_INVALID_EVENT)
+      tx_check_can_id(unchanged, 16#BF#, 16#E0#)
       --
-      if test_state == pass then
-        report("slim_no_can_id_test: PASS");
-      else
-        report("slim_no_can_id_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_no_can_id_test;
-end testbench;
+end_of_test

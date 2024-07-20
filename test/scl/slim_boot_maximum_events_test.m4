@@ -1,59 +1,21 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 5000 ms;
-      report("slim_boot_maximum_events_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_boot_maximum_events_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_boot_maximum_events_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- DOLEARN off
-      RA0 <= '1'; -- UNLEARN off
+define(test_name, slim_boot_maximum_events_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(88)
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_boot_maximum_events_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      report("slim_boot_maximum_events_test: Long on 0x0102,0x0180");
-      RXB0D0 <= 16#90#;    -- ACON, CBUS accessory on
-      RXB0D1 <= 1;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0D3 <= 1;
-      RXB0D4 <= 128;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Long on 0x0102, 0x0180");
+      rx_data(OPC_ACON, 1, 2, 1, 128) -- ACON, CBUS accessory on
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      output_wait_for_output(outputs_port, 64, "2 on")
       --
-      wait until PORTC != 0;
-      if PORTC == 64 then
-        report("slim_boot_maximum_events_test: 2 on");
-      else
-        report("slim_boot_maximum_events_test: Wrong output");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("slim_boot_maximum_events_test: PASS");
-      else
-        report("slim_boot_maximum_events_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_boot_maximum_events_test;
-end testbench;
+end_of_test

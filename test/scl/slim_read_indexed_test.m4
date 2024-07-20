@@ -1,94 +1,69 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 65 ms;
-      report("slim_read_indexed_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_read_indexed_test: process is
-    type test_result is (pass, fail);
-    variable test_state  : test_result;
+define(test_name, slim_read_indexed_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(65)
+    data_file_variables
     variable event_index : integer;
-    file     event_file  : text;
-    variable file_stat   : file_open_status;
-    variable file_line   : string;
     variable ev_index    : integer;
-    begin
-      report("slim_read_indexed_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_read_indexed_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      report("slim_read_indexed_test: Read events");
-      file_open(file_stat, event_file, "./data/stored_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("slim_read_indexed_test: Failed to open event data file");
-        report("slim_read_indexed_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
+      report("test_name: Enter learn mode");
+      rx_data(OPC_NNLRN, 0, 0) -- NNLRN, CBUS enter learn mode to node 0 0
+      wait for 1 ms; -- FIXME Next packet lost if previous not yet processed
       --
+      report("test_name: Read events");
+      data_file_open(stored_events.dat)
+       --
       event_index := 1;
-      while endfile(event_file) == false loop
-        readline(event_file, file_line);
-        report(file_line);
+      while endfile(data_file) == false loop
+        data_file_report_line
         --
         -- Skip node and event numbers
-        readline(event_file, file_line);
-        readline(event_file, file_line);
-        readline(event_file, file_line);
-        readline(event_file, file_line);
+        readline(data_file, file_line); -- NN high
+        readline(data_file, file_line); -- NN low
+        readline(data_file, file_line); -- EN high
+        readline(data_file, file_line); -- EN low
         --
-        readline(event_file, file_line);
+        readline(data_file, file_line);
         while match(file_line, "Done") == false loop
           report(file_line);
-          RXB0D0 <= 16#9C#; -- REVAL, CBUS Indexed read event variable request
-          RXB0D1 <= 4;
-          RXB0D2 <= 2;
-          RXB0D3 <= event_index;
           read(file_line, ev_index);
-          RXB0D4 <= ev_index;
-          RXB0CON.RXFUL <= '1';
-          RXB0DLC.DLC3 <= '1';
-          COMSTAT <= 16#80#;
-          CANSTAT <= 16#0C#;
-          PIR3.RXB0IF <= '1';
+          rx_data(OPC_REVAL, 0, 0, event_index, ev_index) -- REVAL, CBUS Indexed read event variable request
+          tx_check_for_no_message(2)
           --
-          if RXB0CON.RXFUL != '0' then
-            wait until RXB0CON.RXFUL == '0';
-          end if;
-          COMSTAT <= 0;
-          --
-          TXB1CON.TXREQ <= '0';
-          wait until TXB1CON.TXREQ == '1' for 2 ms; -- Test if response sent
-          if TXB1CON.TXREQ == '1' then
-            report("slim_read_indexed_test: Unexpected response");
-            test_state := fail;
-          end if;
-          --
-          readline(event_file, file_line);
-          readline(event_file, file_line);
+          readline(data_file, file_line); -- Skip event variable value
+          readline(data_file, file_line); -- Get next event variable index
         end loop;
-          event_index := event_index + 1;
+        --
+        event_index := event_index + 1;
       end loop;
       --
-      if test_state == pass then
-        report("slim_read_indexed_test: PASS");
-      else
-        report("slim_read_indexed_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_read_indexed_test;
-end testbench;
+      event_index := event_index - 1;
+      report("test_name: Event Variable index too low");
+      rx_data(OPC_REVAL, 0, 0, event_index, 0) -- REVAL, CBUS Indexed read event variable request
+      tx_check_for_no_message(2)
+      --
+      report("test_name: Event Variable index too high");
+      rx_data(OPC_REVAL, 0, 0, event_index, 4) -- REVAL, CBUS Indexed read event variable request
+      tx_check_for_no_message(2)
+      --
+      report("test_name: Event index too low");
+      rx_data(OPC_REVAL, 0, 0, 0, 1) -- REVAL, CBUS Indexed read event variable request
+      tx_check_for_no_message(2)
+      --
+      report("test_name: Event index too high");
+      event_index := event_index + 1;
+      rx_data(OPC_REVAL, 0, 0, event_index, 1) -- REVAL, CBUS Indexed read event variable request
+      tx_check_for_no_message(2)
+      --
+end_of_test

@@ -1,82 +1,34 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 873 ms;
-      report("slim_nv_write_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_nv_write_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_nv_write_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
-     --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_nv_write_test: Green LED (SLiM) on");
+define(test_name, slim_nv_write_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(1012)
+    data_file_variables
+    variable nv_index : integer;
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      report("slim_nv_write_test: Change 3A fire time");
-      RXB0D0 <= 16#96#;      -- NVSET, CBUS set node variable by index
-      RXB0D1 <= 0;           -- NN high
-      RXB0D2 <= 0;           -- NN low
-      RXB0D3 <= 5;           -- Output 3A fire time
-      RXB0D4 <= 2;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      wait_until_slim -- Booted into SLiM
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Test output 2");
+      rx_data(OPC_ASON, 2, 1, 2, 4) -- ASON, CBUS short on 0x0201,0x0204
+      output_wait_for_output(outputs_port, 64, "test_name: Output 2 on")
+      output_wait_for_no_change(outputs_port, 64, 105) -- Check no change in > 100 milliseconds
+      rx_data(OPC_ASOF, 2, 1, 2, 4) -- ASOF, CBUS short off 0x0201,0x0204
+      output_wait_for_change(outputs_port, 64, 0, "test_name: Output 2 off")
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("flim_nv_write_test: Set output 2 for 100 millisecond pulse");
+      rx_data(OPC_NVSET, 0, 0, 7, 1) -- NVSET, CBUS node variable set, index 7, value 1
+      tx_check_no_message(776) -- Cannot set NV in SLiM so no WRACK
       --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_nv_write_test: Unexpected response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_nv_write_test: Test long off 0x0102,0x0204, output 6 on");
-      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
-      RXB0D1 <= 1;           -- NN high
-      RXB0D2 <= 2;           -- NN low
-      RXB0D3 <= 2;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until PORTC != 0;
-      if PORTC == 4 then
-        report("slim_nv_write_test: Output 6 on");
-      else
-        report("slim_nv_write_test: Wrong output");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("slim_nv_write_test: PASS");
-      else
-        report("slim_nv_write_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_nv_write_test;
-end testbench;
+      report("test_name: Test output 2 doesn't pulse");
+      rx_data(OPC_ASON, 2, 1, 2, 4) -- ASON, CBUS short on 0x0201,0x0204
+      output_wait_for_output(outputs_port, 64, "test_name: Output 2 on")
+      output_wait_for_no_change(outputs_port, 64, 113) -- Check no change in > 100 milliseconds
+end_of_test

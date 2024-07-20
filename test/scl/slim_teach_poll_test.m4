@@ -1,216 +1,50 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 1575 ms;
-      report("slim_teach_poll_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_teach_poll_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_teach_poll_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_teach_poll_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(1575)
+    begin_test
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_teach_feedback_test: Green LED (SLiM) on");
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      report("slim_teach_poll_test: Long poll request 0x0220,0x2112, output 2");
-      RXB0D0 <= 16#92#;      -- AREQ, CBUS long poll request
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 32;          -- NN low
-      RXB0D3 <= 33;          -- Event number high
-      RXB0D4 <= 18;          -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      wait_until_slim -- Booted into SLiM
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Long poll request 0x0220,0x2112, output 2");
+      rx_data(OPC_AREQ, 2, 32, 33, 18) -- AREQ, CBUS long poll request
+      tx_check_for_no_message(5, output 2 poll response)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Short poll request 0x0220,0x6446, output 6");
+      rx_data(OPC_ASRQ, 2, 32, 101, 70) -- ASRQ, CBUS short poll request
+      tx_check_for_no_message(5, output 6 poll response)
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_poll_test: Waiting for output 2 poll response");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected output 2 poll response");
-        test_state := fail;
-      end if;
+      report("test_name: Enter learn mode");
+      enter_learn_mode(0, 0) -- Node 0x0000
       --
-      report("slim_teach_poll_test: Short poll request 0x0220,0x6446, output 6");
-      RXB0D0 <= 16#9A#;      -- ASRQ, CBUS short poll request
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 32;          -- NN low
-      RXB0D3 <= 101;         -- Event number high
-      RXB0D4 <= 70;          -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Set output 2 feedback, on 0x0220,0x2112");
+      rx_data(OPC_EVLRN, 2, 32, 33, 18, 3, 16#98#) -- EVLRN, CBUS learn event, event variable 3, feedback normal for output 2
+      tx_check_no_message(776);
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Set output 6 feedback, off 0x0000,0x6546");
+      rx_data(OPC_EVLRN, 0, 0, 101, 70, 3, 16#C8#) -- EVLRN, CBUS learn event, event variable 3, feedback inverted for output 6
+      tx_check_no_message(776);
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Exit learn mode");
+      exit_learn_mode(0, 0) -- Node 0x0000
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_poll_test: Waiting for output 6 poll response");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected output 6 poll response");
-        test_state := fail;
-      end if;
+      report("test_name: Short off 0x0201,0x0204, output 2 off");
+      rx_data(OPC_ASOF, 2, 1, 2, 4)
       --
-      report("slim_teach_poll_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Long poll request 0x0220,0x2112, output 2");
+      rx_data(OPC_AREQ, 2, 32, 33, 18) -- AREQ, CBUS long poll request
+      tx_check_for_no_message(5, output 2 poll response)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Short poll request 0x0220,0x6446, output 6");
+      rx_data(OPC_ASRQ, 2, 32, 101, 70) -- ASRQ, CBUS short poll request
+      tx_check_for_no_message(5, output 6 poll response)
       --
-      report("slim_teach_poll_test: Set output 2 feedback, on 0x0220,0x2112");
-      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
-      RXB0D1 <= 2;         -- NN high
-      RXB0D2 <= 32;        -- NN low
-      RXB0D3 <= 33;        -- Event number high
-      RXB0D4 <= 18;        -- Event number low
-      RXB0D5 <= 3;         -- Event variable index
-      RXB0D6 <= 16#98#;    -- Feedback enabled, normal, output 2
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_poll_test: Set output 6 feedback, off 0x0000,0x6546");
-      RXB0D0 <= 16#D2#;    -- EVLRN, CBUS learn event
-      RXB0D1 <= 0;         -- NN high
-      RXB0D2 <= 0;         -- NN low
-      RXB0D3 <= 101;       -- Event number high
-      RXB0D4 <= 70;        -- Event number low
-      RXB0D5 <= 3;         -- Event variable index
-      RXB0D6 <= 16#C8#;    -- Feedback enabled, inverted, output 6
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_poll_test: Exit learn mode");
-      RXB0D0 <= 16#54#;    -- NNULN, exit learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      report("slim_teach_poll_test: Long poll request 0x0220,0x2112, output 2");
-      RXB0D0 <= 16#92#;      -- AREQ, CBUS long poll request
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 32;          -- NN low
-      RXB0D3 <= 33;          -- Event number high
-      RXB0D4 <= 18;          -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_poll_test: Waiting for output 2 poll response");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected output 2 poll response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_teach_poll_test: Short poll request 0x0220,0x6446, output 6");
-      RXB0D0 <= 16#9A#;      -- ASRQ, CBUS short poll request
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 32;          -- NN low
-      RXB0D3 <= 101;         -- Event number high
-      RXB0D4 <= 70;          -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_teach_poll_test: Waiting for output 6 poll response");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_teach_poll_test: Unexpected output 6 poll response");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("slim_teach_poll_test: PASS");
-      else
-        report("slim_teach_poll_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_teach_poll_test;
-end testbench;
+end_of_test

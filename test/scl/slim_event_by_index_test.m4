@@ -1,54 +1,26 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 811 ms;
-      report("slim_event_by_index_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_event_by_index_test: process is
-    type test_result is (pass, fail);
-    variable test_state  : test_result;
-    begin
-      report("slim_event_by_index_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_event_by_index_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(811)
+    data_file_variables
+    variable ev_node_hi  : integer;
+    variable ev_node_lo  : integer;
+    variable ev_ev_hi    : integer;
+    variable ev_ev_lo    : integer;
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_event_by_index_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      report("slim_event_by_index_test: Read event");
-      RXB0D0 <= 16#72#; -- NENRD, CBUS Read event by index request
-      RXB0D1 <= 0;      -- NN high
-      RXB0D2 <= 0;      -- NN low
-      RXB0D3 <= 1;      -- Event index
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Read event");
+      rx_data(OPC_NENRD, 0, 0, 1) -- NENRD, CBUS Read event by index request, node 0, index 1
       --
-      TXB1CON.TXREQ <= '0';
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_event_by_index_test: Unexpected response");
-        test_state := fail;
-      end if;
+      tx_check_no_message(776)
       --
-      if test_state == pass then
-        report("slim_event_by_index_test: PASS");
-      else
-        report("slim_event_by_index_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_event_by_index_test;
-end testbench;
+end_of_test

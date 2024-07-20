@@ -1,172 +1,51 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 33 ms;
-      report("flim_param_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_param_test: process is
-    type test_result is (pass, fail);
-    variable test_state  : test_result;
-    file     data_file  : text;
-    variable file_stat   : file_open_status;
-    variable file_line   : string;
+define(test_name, flim_param_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(33)
+    data_file_variables
+    variable nn_high     : integer;
+    variable nn_low      : integer;
     variable param_index : integer;
     variable param_value : integer;
-    begin
-      report("flim_param_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_param_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      file_open(file_stat, data_file, "./data/flim_ignore.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_param_test: Failed to open ignored addresses data file");
-        report("flim_param_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_param_test: Ignore requests not addressed to node");
+
+      report("test_name: Ignore requests not addressed to node");
+      data_file_open(flim_ignore.dat)
       while endfile(data_file) == false loop
-        readline(data_file, file_line);
-        report(file_line);
-        RXB0D0 <= 16#73#; -- RQNPN, CBUS read node parameter by index
-        read(data_file, RXB0D1, 1); -- NN high
-        read(data_file, RXB0D2, 1); -- NN low
-        RXB0D3 <= 0;                -- Index, 0 == number of parameters
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
+        data_file_report_line
+        data_file_read(nn_high)
+        data_file_read(nn_low)
+        rx_data(OPC_NVRD, nn_high, nn_low, 1) -- NVRD, CBUS read node variable by index
+        tx_check_no_message(2)
         --
-        if RXB0CON.RXFUL != '0' then
-          wait until RXB0CON.RXFUL == '0';
-        end if;
-        COMSTAT <= 0;
-        --
-        TXB1CON.TXREQ <= '0';
-        wait until TXB1CON.TXREQ == '1' for 2 ms; -- Test if response sent
-        if TXB1CON.TXREQ == '1' then
-          report("flim_param_test: Unexpected response");
-          test_state := fail;
-        end if;
       end loop;
       --
       file_close(data_file);
       --
-      file_open(file_stat, data_file, "./data/flim_params.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_param_test: Failed to open parameter data file");
-        report("flim_param_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_param_test: Read Node Parameters");
+      report("test_name: Read Node Parameters");
       param_index := 0;
+      data_file_open(flim_params.dat)
       while endfile(data_file) == false loop
-        if RXB0CON.RXFUL != '0' then
-          wait until RXB0CON.RXFUL == '0';
-        end if;
-        readline(data_file, file_line);
-        report(file_line);
-        readline(data_file, file_line);
-        read(file_line, param_value);
+        data_file_report_line
+        data_file_read(param_value)
+        rx_data(OPC_RQNPN, 4, 2, param_index) -- RQNPN, CBUS read node parameter by index
         --
-        RXB0D0 <= 16#73#;      -- RQNPN, CBUS read node parameter by index
-        RXB0D1 <= 4;           -- NN high
-        RXB0D2 <= 2;           -- NN low
-        RXB0D3 <= param_index;
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
+        tx_wait_for_node_message(OPC_PARAN, 4, 2, param_index, Parameter index, param_value, Parameter value) -- PARAN, CBUS individual parameter response
         --
-        if RXB0CON.RXFUL != '0' then
-          wait until RXB0CON.RXFUL == '0';
-        end if;
-        COMSTAT <= 0;
-        --
-        TXB1CON.TXREQ <= '0';
-        wait until TXB1CON.TXREQ == '1';
-        if TXB1D0 != 16#9B# then -- PARAN, CBUS individual parameter response
-          report("flim_param_test: Sent wrong response");
-          test_state := fail;
-        end if;
-        if TXB1D1 != 4 then
-          report("flim_param_test: Sent wrong Node Number (high)");
-          test_state := fail;
-        end if;
-        if TXB1D2 != 2 then
-          report("flim_param_test: Sent wrong Node Number (low)");
-          test_state := fail;
-        end if;
-        if TXB1D3 != param_index then
-          report("flim_param_test: Sent wrong parameter index");
-          test_state := fail;
-        end if;
-        if TXB1D4 != param_value then
-          report("flim_param_test: Sent wrong parameter value");
-          test_state := fail;
-        end if;
         param_index := param_index + 1;
       end loop;
       --
-      report("flim_param_test: Test beyond number of parameters");
-      RXB0D0 <= 16#73#;       -- RQNPN, CBUS read node parameter by index
-      RXB0D1 <= 4;            -- NN high
-      RXB0D2 <= 2;            -- NN low
-      RXB0D3 <= param_index;  -- Parameter index
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      TXB1CON.TXREQ <= '0';
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#6F# then -- CMDERR, CBUS error response
-        report("flim_param_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_param_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_param_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 9 then -- Invalid parameter index
-        report("flim_param_test: Sent wrong error number");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("flim_param_test: PASS");
-      else
-        report("flim_param_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_param_test;
-end testbench;
+      report("test_name: Test past number of parameters");
+      rx_data(OPC_RQNPN, 4, 2, param_index) -- RQNPN, CBUS read node parameter by index
+      tx_wait_for_cmderr_message(4, 2, CMDERR_INV_PARAM_IDX)
+end_of_test

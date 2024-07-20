@@ -1,268 +1,56 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 33372 ms;
-      report("flim_modify_by_index_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_modify_by_index_test: process is
-    type test_result is (pass, fail);
-    variable test_state   : test_result;
-    file     event_file   : text;
-    variable file_stat    : file_open_status;
-    variable file_line    : string;
-    variable report_line  : string;
-    variable trigger_line : string;
-    variable trigger_val  : integer;
-    variable last_portc   : integer;
-    begin
-      report("flim_modify_by_index_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, flim_modify_by_index_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(33372)
+    data_file_variables
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_modify_by_index_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_modify_by_index_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Enter learn mode");
+      enter_learn_mode(4, 2)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Modify events");
+      data_file_open(modify_indexed.dat)
       --
-      if Datmode != 24 then
-        wait until Datmode == 24;
-      end if;
-      --
-      report("flim_modify_by_index_test: Modify events");
-      file_open(file_stat, event_file, "./data/modify_indexed.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_modify_by_index_test: Failed to open learn data file");
-        report("flim_modify_by_index_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      while endfile(event_file) == false loop
-        readline(event_file, report_line);
-        report(report_line);
-        --
-        RXB0D0 <= 16#F5#;    -- EVLRNI, CBUS learn by index event
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        read(event_file, RXB0D5, 1);
-        read(event_file, RXB0D6, 1);
-        read(event_file, RXB0D7, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        TXB1CON.TXREQ <= '0';
-        --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_indexed_learn
+        data_file_skip_till_done
         -- CANACC5 does not implement learn by index so no WRACK expected
-        --TXB1CON.TXREQ <= '0';
-        --wait until TXB1CON.TXREQ == '1';
-        --if TXB1D0 != 16#59# then -- WRACK, CBUS write acknowledge response
-        --  report("flim_modify_by_index_test: Sent wrong response");
-        --  test_state := fail;
-        --end if;
-        --if TXB1D1 != 4 then
-        --  report("flim_modify_by_index_test: Sent wrong Node Number (high)");
-        --  test_state := fail;
-        --end if;
-        --if TXB1D2 != 2 then
-        --  report("flim_modify_by_index_test: Sent wrong Node Number (low)");
-        --  test_state := fail;
-        --end if;
-        wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-        if TXB1CON.TXREQ == '1' then
-          report("flim_modify_by_index_test: Unexpected response");
-          test_state := fail;
-        end if;
-        --
-        readline(event_file, report_line);
-        while match(report_line, "Done") == false loop
-          readline(event_file, trigger_line);
-          read(trigger_line, trigger_val);
-          readline(event_file, report_line);
-        end loop;
-        --
+        tx_check_no_message(776)
       end loop;
       --
-      file_close(event_file);
+      file_close(data_file);
       --
-      report("flim_modify_by_index_test: Exit learn mode");
-      RXB0D0 <= 16#54#;    -- NNULN, exit learn mode
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Exit learn mode");
+      exit_learn_mode(4, 2)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Check available event space");
+      rx_data(OPC_NNEVN, 4, 2) -- NNEVN, CBUS request available event space to node 4 2
+      tx_wait_for_node_message(OPC_EVNLF, 4, 2, 123) -- EVLNF, CBUS available event space response
       --
-      if Datmode != 8 then
-        wait until Datmode == 8;
-      end if;
+      report("test_name: Check number of stored events");
+      rx_data(OPC_RQEVN, 4, 2) -- RQEVN, CBUS request number of stored events to node 4 2
+      tx_wait_for_node_message(OPC_NUMEV, 4, 2, 5, number of stored events) -- NNEVN, CBUS number of stored events response
       --
-      report("flim_modify_by_index_test: Check available event space");
-      RXB0D0 <= 16#56#;    -- NNEVN, CBUS request available event space
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#70# then -- EVLNF, CBUS available event space response
-        report("flim_modify_by_index_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_modify_by_index_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_modify_by_index_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 123 then
-        report("flim_modify_by_index_test: Sent wrong available event space");
-        test_state := fail;
-      end if;
-      --
-      report("flim_modify_by_index_test: Check number of stored events");
-      RXB0D0 <= 16#58#;    -- RQEVN, CBUS request number of stored events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#74# then -- NNEVN, CBUS number of stored events response
-        report("flim_modify_by_index_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_modify_by_index_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_modify_by_index_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 5 then
-        report("flim_modify_by_index_test: Sent wrong number of stored events");
-        test_state := fail;
-      end if;
-      --
+
       -- CANACC5 does not implement learn by index so events are unmodified
-      -- file_open(file_stat, event_file, "./data/index_modified_events.dat", read_mode);
-      file_open(file_stat, event_file, "./data/learnt_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_modify_by_index_test: Failed to open event data file");
-        report("flim_modify_by_index_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
+      report("test_name: Check events are unchanged");
+      data_file_open(learnt_events.dat)
       --
-      report("flim_modify_by_index_test: Check events are unchanged");
-      last_portc := PORTC;
-      while endfile(event_file) == false loop
-        readline(event_file, report_line);
-        report(report_line);
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
-        readline(event_file, report_line);
-        while match(report_line, "Done") == false loop
-          readline(event_file, trigger_line);
-          read(trigger_line, trigger_val);
-          --
-          if match(report_line, "No change") then
-            if Datmode != 8 then
-              wait until Datmode == 8;
-            end if;
-            --
-            if PORTC == last_portc then
-              report(report_line);
-            else
-              report("flim_modify_by_index_test: Unexpected output change");
-              test_state := fail;
-            end if;
-          else
-            wait until PORTC != last_portc;
-            if PORTC == trigger_val then
-              report(report_line);
-            else
-              report("flim_modify_by_index_test: Wrong output");
-              test_state := fail;
-            end if;
-          end if;
-          --
-          last_portc := PORTC;
-          readline(event_file, report_line);
-        end loop;
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_event
+        output_wait_for_data_file_output(outputs_port)
       end loop;
       --
-      if test_state == pass then
-        report("flim_modify_by_index_test: PASS");
-      else
-        report("flim_modify_by_index_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_modify_by_index_test;
-end testbench;
+end_of_test

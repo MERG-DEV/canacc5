@@ -1,103 +1,34 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 785 ms;
-      report("flim_set_can_id_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_set_can_id_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    variable test_sidl : integer;
-    begin
-      report("flim_set_can_id_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- DOLEARN off
-      RA0 <= '1'; -- UNLEARN off
+define(test_name, flim_set_can_id_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(813)
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_set_can_id_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_set_can_id_test: Check CAN Id");
-      RXB0D0 <= 16#0D#; -- QNN, CBUS Query node request
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Check initial CAN Id");
+      rx_data(OPC_RQNPN, 4, 2, 0) -- RQNPN, CBUS read node parameter by index, 0 == number of parameters
+      tx_wait_for_node_message(OPC_PARAN, 4, 2) -- PARAN, CBUS individual parameter response
+      tx_check_can_id(initial, 16#B1#, 16#80#)
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Ignore set CAN Id not addressed to node");
+      rx_data(OPC_CANID, 0, 0, 3) -- CANID CBUS set CAN Id request
+      tx_check_no_message(776)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Check CAN Id unchanged");
+      rx_data(OPC_RQNPN, 4, 2, 0) -- RQNPN, CBUS read node parameter by index, 0 == number of parameters
+      tx_wait_for_node_message(OPC_PARAN, 4, 2) -- PARAN, CBUS individual parameter response
+      tx_check_can_id(unchanged, 16#B1#, 16#80#)
       --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1SIDH != 16#B1# then
-        report("flim_set_can_id_test: Incorrect SIDH");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#80# then
-        report("flim_set_can_id_test: Incorrect SIDL");
-        test_state := fail;
-      end if;
+      report("test_name: Set CAN Id");
+      rx_data(OPC_CANID, 4, 2, 3) -- CANID CBUS set CAN Id request
+      tx_wait_for_node_message(OPC_NNACK, 4, 2) -- NNACK, CBUS node number acknowledge
+      tx_check_can_id(modified, 16#B0#, 16#60#)
       --
-      if Datmode != 8 then
-        wait until Datmode == 8;
-      end if;
-      --
-      report("flim_set_can_id_test: Set CAN Id");
-      RXB0D0 <= 16#75#; -- CBUS set CAN Id request
-      RXB0D1 <= 4;      -- NN high
-      RXB0D2 <= 2;      -- NN low
-      RXB0D3 <= 3;      -- New CAN Id
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#52# then -- NNACK, CBUS node number acknowledge
-        report("flim_set_can_id_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_set_can_id_test: NN acknowledge wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_set_can_id_test: NN acknowledge wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1SIDH != 16#B0# then
-        report("flim_set_can_id_test: NN acknowledge wrong CAN Id, SIDH");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#60# then
-        report("flim_set_can_id_test: NN acknowledge wrong CAN Id, SIDL");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("flim_set_can_id_test: PASS");
-      else
-        report("flim_set_can_id_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_set_can_id_test;
-end testbench;
+end_of_test

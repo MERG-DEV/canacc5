@@ -1,137 +1,51 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 1615 ms;
-      report("flim_flim_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_flim_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
+define(test_name, flim_flim_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(1615)
     variable test_sidh : integer;
     variable test_sidl : integer;
-    begin
-      report("flim_flim_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- DOLEARN off
-      RA0 <= '1'; -- UNLEARN off
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1';
-      report("flim_flim_test: Booted into FLiM");
+      wait_until_flim -- Booted into FLiM
       --
-      RA2 <= '0';
-      report("flim_flim_test: Setup button pressed");
+      set_setup_on
+      report("test_name: Setup button pressed");
       wait for 1 sec;
-      RA2 <= '1';
-      report("flim_flim_test: Setup button released");
+      set_setup_off
+      report("test_name: Setup button released");
       --
-      report("flim_flim_test: Awaiting RTR");
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1DLC.TXRTR != '1' then
-        report("flim_flim_test: not RTR request");
-        test_state := fail;
-      end if;
-      report("flim_flim_test: RTR request");
-      if TXB1SIDH != 16#BF# then
-        report("flim_flim_test: Incorrect default SIDH");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#E0# then
-        report("flim_flim_test: Incorrect default SIDL");
-        test_state := fail;
-      end if;
+      report("test_name: Awaiting RTR");
+      tx_rtr
+      tx_check_can_id(default, 16#BF#, 16#E0#)
       --
-      TXB1CON.TXREQ <= '0';
-      report("flim_flim_test: Awaiting Node Number request");
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#50# then -- RQNN, CBUS request node number
-        report("flim_flim_test: Sent wrong request");
-        test_state := fail;
+      report("test_name: Awaiting Node Number request");
+      tx_wait_for_node_message(OPC_RQNN, 4, 2) -- RQNN, CBUS request Node Number, node 4 2
+      report("test_name: RQNN request");
+      tx_check_can_id(new, 16#B0#, 16#20#)
+      --
+      report("test_name: Set Node Number");
+      rx_data(OPC_SNN, 9, 8) -- SNN, CBUS set node number, node 9 8
+      --
+      report("test_name: Awaiting Node Number acknowledge");
+      tx_wait_for_node_message(OPC_NNACK, 9, 8) -- NNACK, CBUS node number acknowledge, node 9 8
+      report("test_name: Node number response");
+      tx_check_can_id(acknowledge, 16#B0#, 16#20#)
+      --
+      if flim_led == '0' then
+        report("test_name: Awaiting yellow LED (FLiM)");
+        wait until flim_led == '1';
       end if;
-      report("flim_flim_test: RQNN request");
-      if TXB1SIDH != 16#B0# then
-        report("flim_flim_test: Incorrect new SIDH");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#20# then
-        report("flim_flim_test: Incorrect new SIDL");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_flim_test: NN request wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_flim_test: NN request wrong Node Number (low)");
+      report("test_name: Yellow LED (FLiM) on");
+      --
+      if slim_led == '1' then
+        report("test_name: Green LED (SLiM) on");
         test_state := fail;
       end if;
       --
-      wait for 1 ms; -- FIXME Next packet lost if previous Tx not yet completed
-      report("flim_flim_test: Set Node Number");
-      RXB0D0 <= 16#42#; -- SNN, CBUS set node number
-      RXB0D1 <= 9;      -- New NN high
-      RXB0D2 <= 8;      -- New NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      if RXB0CON.RXFUL != '0' then
-        wait until RXB0CON.RXFUL == '0';
-      end if;
-      COMSTAT <= 0;
-      --
-      TXB1CON.TXREQ <= '0';
-      report("flim_flim_test: Awaiting Node Number acknowledge");
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#52# then -- NNACK, CBUS node number acknowledge
-        report("flim_flim_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      report("flim_flim_test: Node number response");
-      if TXB1D1 != 9 then
-        report("flim_flim_test: NN acknowledge wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 8 then
-        report("flim_flim_test: NN acknowledge wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1SIDL != 16#20# then
-        report("flim_flim_test: NN acknowledge wrong CAN Id, SIDL");
-        test_state := fail;
-      end if;
-      if TXB1SIDH != 16#B0# then
-        report("flim_flim_test: NN acknowledge wrong CAN Id, SIDH");
-        test_state := fail;
-      end if;
-      --
-      if RB6 == '0' then
-        report("flim_flim_test: Awaiting yellow LED (FLiM)");
-        wait until RB6 == '1';
-      end if;
-      report("flim_flim_test: Yellow LED (FLiM) on");
-      --
-      if RB7 == '1' then
-        report("flim_flim_test: Green LED (SLiM) on");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("flim_flim_test: PASS");
-      else
-        report("flim_flim_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_flim_test;
-end testbench;
+end_of_test

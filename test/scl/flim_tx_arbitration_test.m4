@@ -1,74 +1,38 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 160 ms;
-      report("flim_tx_arbitration_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_tx_arbitration_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    file     sidh_file  : text;
-    variable file_stat  : file_open_status;
-    variable sidh_line  : string;
-    variable tx_count  : integer;
-     variable sidh_val   : integer;
-    begin
-      report("flim_tx_arbitration_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, flim_tx_arbitration_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(160)
+    data_file_variables
+    variable tx_count   : integer;
+    variable sidh_val   : integer;
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_tx_arbitration_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_tx_arbitration_test: Request Node Parameter");
-      RXB0D0 <= 16#73#;      -- CBUS read node parameter by index
-      RXB0D1 <= 4;           -- NN high
-      RXB0D2 <= 2;           -- NN low
-      RXB0D3 <= 0;
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Request Node Parameter");
+      rx_data(OPC_RQNPN, 4, 2, 0) -- RQNPN, CBUS read node parameter by index
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      file_open(file_stat, sidh_file, "./data/flim_sidh.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_unteach_test: Failed to open SIDH data file");
-        report("flim_unteach_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_tx_arbitration_test: Loosing arbitration raises Tx priority");
-      while endfile(sidh_file) == false loop
-        readline(sidh_file, sidh_line);
-        report(sidh_line);
-        readline(sidh_file, sidh_line);
-        read(sidh_line, tx_count);
-        readline(sidh_file, sidh_line);
-        read(sidh_line, sidh_val);
+      report("test_name: Loosing arbitration raises Tx priority");
+      data_file_open(flim_sidh.dat)
+      while endfile(data_file) == false loop
+        data_file_report_line
+        data_file_read(tx_count)
+        data_file_read(sidh_val)
         --
         while tx_count > 0 loop
-          if TXB1CON.TXREQ == '0' then
-            wait until TXB1CON.TXREQ == '1';
-          end if;
+          tx_wait_if_not_ready
           if TXB1SIDH == sidh_val then
             --
           else
-            report("flim_tx_arbitration_test: Wrong SIDH");
+            report("test_name: Wrong SIDH");
             test_state := fail;
           end if;
           TXB1CON.TXLARB <= '1';
@@ -80,12 +44,4 @@ begin
         end loop;
       end loop;
       --
-      if test_state == pass then
-        report("flim_tx_arbitration_test: PASS");
-      else
-        report("flim_tx_arbitration_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_tx_arbitration_test;
-end testbench;
+end_of_test

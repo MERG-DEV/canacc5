@@ -1,65 +1,20 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 7 ms;
-      report("flim_rtr_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_rtr_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    variable test_sidl : integer;
-    begin
-      report("flim_rtr_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- DOLEARN off
-      RA0 <= '1'; -- UNLEARN off
+define(test_name, flim_reboot_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(7)
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_rtr_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_rtr_test: Receive RTR");
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.RXRTR <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Receive RTR");
+      rx_rtr
+      tx_wait_for_rtr_response(16#B1#, 16#80#)
       --
-      TXB2CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      if TXB2CON.TXREQ != '1' then
-        wait until TXB2CON.TXREQ ==  '1';
-      end if;
-      if TXB2SIDH != 16#B1# then
-        report("flim_rtr_test: Incorrect SIDH");
-        test_state := fail;
-      end if;
-      if TXB2SIDL != 16#80# then
-        report("flim_rtr_test: Incorrect SIDL");
-        test_state := fail;
-      end if;
-      if TXB2DLC != 0 then
-        report("flim_rtr_test: Incorrect data length");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("flim_rtr_test: PASS");
-      else
-        report("flim_rtr_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_rtr_test;
-end testbench;
+end_of_test

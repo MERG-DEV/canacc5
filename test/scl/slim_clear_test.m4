@@ -1,148 +1,38 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode; -- FIXME, kludge to prevent overwriting Rx packet
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 24046 ms;
-      report("slim_clear_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_clear_test: process is
-    type test_result is (pass, fail);
-    variable test_state   : test_result;
-    file     event_file   : text;
-    variable file_stat    : file_open_status;
-    variable report_line  : string;
-    variable trigger_line : string;
-    variable trigger_val  : integer;
-    variable last_portc   : integer;
-    begin
-      report("slim_clear_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_clear_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(24046)
+    data_file_variables
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_clear_test: Green LED (SLiM) on");
+      wait_until_slim -- Booted into SLiM
       --
-      report("slim_clear_test: Enter learn mode");
-      RXB0D0 <= 16#53#;    -- NNLRN, CBUS enter learn mode
-      RXB0D1 <= 0;         -- NN high
-      RXB0D2 <= 0;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Enter learn mode");
+      rx_data(OPC_NNLRN, 0, 0) -- NNLRN, CBUS enter learn mode to node 0 0
+      wait for 1 ms; -- FIXME Next packet lost if previous not yet processed
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Clear events");
+      rx_data(OPC_NNCLR, 0, 0) -- NNCLR, CBUS clear events to node 0 0
+      tx_check_for_no_message(776)
       --
-      report("slim_clear_test: Clear events");
-      RXB0D0 <= 16#55#;    -- NNCLR, CBUS clear events
-      RXB0D1 <= 0;         -- NN high
-      RXB0D2 <= 0;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Exit learn mode");
+      rx_data(OPC_NNULN, 0, 0) -- NNULN, exit learn mode to node 0 0
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Check events");
+      data_file_open(learnt_events.dat)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1' for 776 ms; -- Test if response sent
-      if TXB1CON.TXREQ == '1' then
-        report("slim_clear_test: Unexpected response");
-        test_state := fail;
-      end if;
-      --
-      report("slim_clear_test: Exit learn mode");
-      RXB0D0 <= 16#54#;    -- NNULN, exit learn mode
-      RXB0D1 <= 0;         -- NN high
-      RXB0D2 <= 0;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      file_open(file_stat, event_file, "./data/learnt_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("slim_clear_test: Failed to open event data file");
-        report("slim_clear_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("slim_clear_test: Check events");
-      last_portc := PORTC;
-      while endfile(event_file) == false loop
-        readline(event_file, report_line);
-        report(report_line);
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
-        readline(event_file, report_line);
-        while match(report_line, "Done") == false loop
-          readline(event_file, trigger_line);
-          read(trigger_line, trigger_val);
-          --
-          if match(report_line, "No change") then
-            if Datmode != 0 then
-              wait until Datmode == 0;
-            end if;
-            --
-            if PORTC == last_portc then
-              report(report_line);
-            else
-              report("slim_clear_test: Unexpected output change");
-              test_state := fail;
-            end if;
-          else
-            wait until PORTC != last_portc;
-            if PORTC == trigger_val then
-              report(report_line);
-            else
-              report("slim_clear_test: Wrong output");
-              test_state := fail;
-            end if;
-          end if;
-          --
-          last_portc := PORTC;
-          readline(event_file, report_line);
-        end loop;
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_event
+        output_wait_for_data_file_output(outputs_port)
       end loop;
       --
-      if test_state == pass then
-        report("slim_clear_test: PASS");
-      else
-        report("slim_clear_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_clear_test;
-end testbench;
+end_of_test

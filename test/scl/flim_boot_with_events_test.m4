@@ -1,167 +1,35 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 23285 ms;
-      report("flim_boot_with_events_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_boot_with_events_test: process is
-    type test_result is (pass, fail);
-    variable test_state   : test_result;
-    file     event_file   : text;
-    variable file_stat    : file_open_status;
-    variable report_line  : string;
-    variable trigger_line : string;
-    variable trigger_val  : integer;
-    variable last_portc   : integer;
-    begin
-      report("flim_boot_with_events_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- DOLEARN off
-      RA0 <= '1'; -- UNLEARN off
+define(test_name, flim_boot_with_events_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(23285)
+    data_file_variables
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_boot_with_events_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      report("flim_boot_with_events_test: Check available event space");
-      RXB0D0 <= 16#56#;    -- NNEVN, CBUS request available event space
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Check available event space");
+      rx_data(OPC_NNEVN, 4, 2) -- CBUS request available event space to node 4 2
+      tx_wait_for_node_message(OPC_EVNLF, 4, 2, 123, available event space) -- EVLNF, CBUS available event space response node 4 2
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Check number of stored events");
+      rx_data(OPC_RQEVN, 4, 2) -- CBUS request number of stored events to node 4 2
+      tx_wait_for_node_message(OPC_NUMEV, 4, 2, 5, number of stored events) -- EVLNF, CBUS available event space response node 4 2
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Check events");
+      data_file_open(learnt_events.dat)
       --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#70# then -- EVLNF, CBUS available event space response
-        report("flim_boot_with_events_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_boot_with_events_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_boot_with_events_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 123 then
-        report("flim_boot_with_events_test: Sent wrong available event space");
-        test_state := fail;
-      end if;
-      --
-      report("flim_boot_with_events_test: Check number of stored events");
-      RXB0D0 <= 16#58#;    -- RQEVN, CBUS request number of stored events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#74# then -- NNEVN, CBUS number of stored events response
-        report("flim_boot_with_events_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_boot_with_events_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_boot_with_events_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 5 then
-        report("flim_boot_with_events_test: Sent wrong number of stored events");
-        test_state := fail;
-      end if;
-      --
-      file_open(file_stat, event_file, "./data/learnt_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_boot_with_events_test: Failed to open event data file");
-        report("flim_boot_with_events_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_boot_with_events_test: Check events");
-      last_portc := PORTC;
-      while endfile(event_file) == false loop
-        readline(event_file, report_line);
-        report(report_line);
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
-        readline(event_file, report_line);
-        while match(report_line, "Done") == false loop
-          readline(event_file, trigger_line);
-          read(trigger_line, trigger_val);
-          --
-          if match(report_line, "No change") then
-            if Datmode != 8 then
-              wait until Datmode == 8;
-            end if;
-            --
-            if PORTC == last_portc then
-              report(report_line);
-            else
-              report("slim_boot_with_events_test: Unexpected output change");
-              test_state := fail;
-            end if;
-          else
-            wait until PORTC != last_portc;
-            if PORTC == trigger_val then
-              report(report_line);
-            else
-              report("slim_boot_with_events_test: Wrong output");
-              test_state := fail;
-            end if;
-          end if;
-          --
-          last_portc := PORTC;
-          readline(event_file, report_line);
-        end loop;
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_event
+        output_wait_for_data_file_output(outputs_port)
       end loop;
       --
-      if test_state == pass then
-        report("flim_boot_with_events_test: PASS");
-      else
-        report("flim_boot_with_events_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_boot_with_events_test;
-end testbench;
+end_of_test

@@ -1,197 +1,54 @@
-configuration for "PIC18F2480" is
-  shared variable Datmode;
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 23964 ms;
-      report("flim_learn_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  flim_learn_test: process is
-    type test_result is (pass, fail);
-    variable test_state   : test_result;
-    file     event_file   : text;
-    variable file_stat    : file_open_status;
-    variable file_line    : string;
-    variable report_line  : string;
-    variable trigger_line : string;
-    variable trigger_val  : integer;
-    begin
-      report("flim_learn_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, flim_boot_learn_test)dnl
+include(common.inc)dnl
+include(data_file.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(23285)
+    data_file_variables
+    begin_test
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      wait until RB6 == '1'; -- Booted into FLiM
-      report("flim_learn_test: Yellow LED (FLiM) on");
+      wait_until_flim -- Booted into FLiM
       --
-      RA1 <= '0';
-      report("flim_learn_test: Learn switch on");
+      set_dolearn_on
       --
-      file_open(file_stat, event_file, "./data/learn.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_learn_test: Failed to open learn data file");
-        report("flim_learn_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
+      report("test_name: Do not learn events");
+      data_file_open(learn.dat)
       --
-      report("flim_learn_test: Do not learn events");
-      while endfile(event_file) == false loop
-        readline(event_file, report_line);
-        report(report_line);
+      while endfile(data_file) == false loop
+        data_file_report_line
+        data_file_select_output_and_polarity
+        rx_data_file_event
         --
-        readline(event_file, trigger_line);
-        read(trigger_line, RB0); -- Sel 0, LSB
-        readline(event_file, trigger_line);
-        read(trigger_line, RB1); -- Sel 1
-        readline(event_file, trigger_line);
-        read(trigger_line, RB4); -- Sel 2, MSB
-        readline(event_file, trigger_line);
-        read(trigger_line, RB5); -- Polarity
-        
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
-        --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
-        if Datmode != 8 then
-          wait until Datmode == 8;
-        end if;
+        wait_until_idle
       end loop;
       --
-      file_close(event_file);
+      file_close(data_file);
       --
-      RA1 <= '1'; -- Learn off
-      report("flim_learn_test: Learn switch off");
+      set_dolearn_off
       --
-      report("flim_learn_test: Check available event space");
-      RXB0D0 <= 16#56#;    -- NNEVN, CBUS request available event space
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      report("test_name: Check available event space");
+      rx_data(OPC_NNEVN, 4, 2) -- CBUS request available event space to node 4 2
+      tx_wait_for_node_message(OPC_EVNLF, 4, 2, 128, available event space) -- EVLNF, CBUS available event space response node 4 2
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Check number of stored events");
+      rx_data(OPC_RQEVN, 4, 2) -- CBUS request number of stored events to node 4 2
+      tx_wait_for_node_message(OPC_NUMEV, 4, 2, 0, number of stored events) -- EVLNF, CBUS available event space response node 4 2
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Check events were not learnt");
+      data_file_open(learnt_events.dat)
       --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#70# then -- EVLNF, CBUS available event space response
-        report("flim_learn_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_learn_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_learn_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 128 then
-        report("flim_learn_test: Sent wrong available event space");
-        test_state := fail;
-      end if;
-      --
-      report("flim_learn_test: Check number of stored events");
-      RXB0D0 <= 16#58#;    -- RQEVN, CBUS request number of stored events
-      RXB0D1 <= 4;         -- NN high
-      RXB0D2 <= 2;         -- NN low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait until TXB1CON.TXREQ == '1';
-      if TXB1D0 != 16#74# then -- NNEVN, CBUS number of stored events response
-        report("flim_learn_test: Sent wrong response");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 4 then
-        report("flim_learn_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 2 then
-        report("flim_learn_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 0 then
-        report("flim_learn_test: Sent wrong number of stored events");
-        test_state := fail;
-      end if;
-      --
-      file_open(file_stat, event_file, "./data/learnt_events.dat", read_mode);
-      if file_stat != open_ok then
-        report("flim_learn_test: Failed to open event data file");
-        report("flim_learn_test: FAIL");
-        PC <= 0;
-        wait;
-      end if;
-      --
-      report("flim_learn_test: Check events were not learnt");
-      while endfile(event_file) == false loop
-        readline(event_file, file_line);
-        report(file_line);
-        read(event_file, RXB0D0, 1);
-        read(event_file, RXB0D1, 1);
-        read(event_file, RXB0D2, 1);
-        read(event_file, RXB0D3, 1);
-        read(event_file, RXB0D4, 1);
-        RXB0CON.RXFUL <= '1';
-        RXB0DLC.DLC3 <= '1';
-        COMSTAT <= 16#80#;
-        CANSTAT <= 16#0C#;
-        PIR3.RXB0IF <= '1';
+      while endfile(data_file) == false loop
+        data_file_report_line
+        rx_data_file_event
+        data_file_skip_till_done
         --
-        wait until RXB0CON.RXFUL == '0';
-        COMSTAT <= 0;
-        --
-        readline(event_file, file_line);
-        while match(file_line, "Done") == false loop
-          readline(event_file, file_line);
-        end loop;
-        --
-        wait until PORTC != 0 for 1005 ms;
-        if PORTC != 0 then
-          report("flim_learn_test: Unexpected output");
-          test_state := fail;
-          wait until PORTC == 0;
-        end if;
+        output_wait_for_no_change(outputs_port, 0, 1005)
       end loop;
       --
-      if test_state == pass then
-        report("flim_learn_test: PASS");
-      else
-        report("flim_learn_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process flim_learn_test;
-end testbench;
+end_of_test

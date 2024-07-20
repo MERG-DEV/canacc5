@@ -1,160 +1,44 @@
-configuration for "PIC18F2480" is
-end configuration;
---
-testbench for "PIC18F2480" is
-begin
-  test_timeout: process is
-    begin
-      wait for 33 ms;
-      report("slim_feedback_test: TIMEOUT");
-      report(PC); -- Crashes simulator, MDB will report current source line
-      PC <= 0;
-      wait;
-    end process test_timeout;
-    --
-  slim_feedback_test: process is
-    type test_result is (pass, fail);
-    variable test_state : test_result;
-    begin
-      report("slim_feedback_test: START");
-      test_state := pass;
-      RA2 <= '1'; -- Setup button not pressed
-      RA1 <= '1'; -- Learn off
-      RA0 <= '1'; -- Unlearn off
+define(test_name, slim_feedback_test)dnl
+include(common.inc)dnl
+include(rx_tx.inc)dnl
+include(io.inc)dnl
+include(hardware.inc)dnl
+include(cbusdefs.inc)dnl
+
+beginning_of_test(33)
+    variable last_output : integer;
+    begin_test
+      last_output := 0;
       --
-      wait until RB7 == '1'; -- Booted into SLiM
-      report("slim_nv_write_test: Green LED (SLiM) on");
+      set_setup_off
+      set_dolearn_off
+      set_unlearn_off
       --
-      report("slim_feedback_test: Short on 0x0201,0x0204, output 2 on");
-      RXB0D0 <= 16#98#;      -- ASON, CBUS short on
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 2;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      wait_until_slim -- Booted into SLiM
       --
-      TXB1CON.TXREQ <= '0';
+      report("test_name: Short on 0x0201, 0x0204, output 2 on");
+      rx_data(OPC_ASON, 2, 1, 2, 4)
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      output_wait_for_change(outputs_port, last_output, 64, "Output 2 on")
+      last_output := outputs_port;
       --
-      wait on PORTC;
+      tx_wait_for_message(output 2 feedback (ACON), OPC_ACON, Opcode, 2, Node Number (high), 32, Node Number (low), 33, Event Number (high), 18, Event Number (low))
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_feedback_test: Waiting for output 2 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ != '1' then
-        report("slim_feedback_test: Missing output 2 feedback event");
-        test_state := fail;
-      end if;
-      if TXB1D0 != 16#90# then -- ACON, CBUS long on
-        report("slim_feedback_test: Sent wrong event");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 2 then
-        report("slim_feedback_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 32 then
-        report("slim_feedback_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 33 then
-        report("slim_feedback_test: Sent wrong Event Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D4 != 18 then
-        report("slim_feedback_test: Sent wrong Event Number (low)");
-        test_state := fail;
-      end if;
+      report("test_name: Long off 0x0201, 0x0604, output 7 on");
+      rx_data(OPC_ACOF, 2, 1, 6, 4)
       --
-      report("slim_feedback_test: Long off 0x0201,0x0604, output 7 on");
-      RXB0D0 <= 16#91#;      -- ACOF, CBUS long off
-      RXB0D1 <= 2;           -- NN high
-      RXB0D2 <= 1;           -- NN low
-      RXB0D3 <= 6;           -- Event number high
-      RXB0D4 <= 4;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
+      output_wait_for_change(outputs_port, last_output, 66, "Outputs 2 & 7 on")
+      last_output := outputs_port;
       --
-      TXB1CON.TXREQ <= '0';
+      tx_check_for_no_message(5, output 7 feedback event);
       --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
+      report("test_name: Short off 0x0909, 0x0402, output 6 & 7 on");
+      rx_data(OPC_ASOF, 9, 9, 4, 2)
       --
-      wait on PORTC;
+      output_wait_for_change(outputs_port, last_output, 64, "Output 7 off")
+      last_output := outputs_port;
+      output_wait_for_change(outputs_port, last_output, 70, "Outputs 2 6 & 7 on")
       --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_feedback_test: Waiting for output 7 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ == '1' then
-        report("slim_feedback_test: Unexpected output 7 feedback event");
-        test_state := fail;
-      end if;
+      tx_wait_for_message(output 6 feedback (ASOF), OPC_ASOF, Opcode, 0, Node Number (high), 0, Node Number (low), 101, Event Number (high), 70, Event Number (low))
       --
-      report("slim_feedback_test: Short off 0x0909,0x0402, output 6 & 7 on");
-      RXB0D0 <= 16#99#;      -- ASOF, CBUS short off
-      RXB0D1 <= 9;           -- NN high
-      RXB0D2 <= 9;           -- NN low
-      RXB0D3 <= 4;           -- Event number high
-      RXB0D4 <= 2;           -- Event number low
-      RXB0CON.RXFUL <= '1';
-      RXB0DLC.DLC3 <= '1';
-      COMSTAT <= 16#80#;
-      CANSTAT <= 16#0C#;
-      PIR3.RXB0IF <= '1';
-      --
-      TXB1CON.TXREQ <= '0';
-      --
-      wait until RXB0CON.RXFUL == '0';
-      COMSTAT <= 0;
-      --
-      wait on PORTC;
-      --
-      if TXB1CON.TXREQ != '1' then
-        report("slim_feedback_test: Waiting for output 6 feedback");
-        wait until TXB1CON.TXREQ == '1' for 5 ms;
-      end if;
-      if TXB1CON.TXREQ != '1' then
-        report("slim_feedback_test: Missing output 6 feedback event");
-        test_state := fail;
-      end if;
-      if TXB1D0 != 16#99# then -- ASOF, CBUS short off (6 feedback is inverted)
-        report("slim_feedback_test: Sent wrong event");
-        test_state := fail;
-      end if;
-      if TXB1D1 != 0 then
-        report("slim_feedback_test: Sent wrong Node Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D2 != 0 then
-        report("slim_feedback_test: Sent wrong Node Number (low)");
-        test_state := fail;
-      end if;
-      if TXB1D3 != 101 then
-        report("slim_feedback_test: Sent wrong Event Number (high)");
-        test_state := fail;
-      end if;
-      if TXB1D4 != 70 then
-        report("slim_feedback_test: Sent wrong Event Number (low)");
-        test_state := fail;
-      end if;
-      --
-      if test_state == pass then
-        report("slim_feedback_test: PASS");
-      else
-        report("slim_feedback_test: FAIL");
-      end if;          
-      PC <= 0;
-      wait;
-    end process slim_feedback_test;
-end testbench;
+end_of_test
