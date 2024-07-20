@@ -5,8 +5,6 @@ include(hardware.inc)dnl
 include(cbusdefs.inc)dnl
 
 beginning_of_test(1615)
-    variable test_sidh : integer;
-    variable test_sidl : integer;
     begin_test
       set_setup_off
       set_dolearn_off
