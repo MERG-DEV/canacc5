@@ -17,7 +17,7 @@ define(set_flim_CAN_id_and_module_status,
 # Set CAN Id and module status
 Write /e 0x0 0x0C 0x08)
 
-define(set_flim_node_id,
+define(set_node_id,
 # Set Node Id
 Write /e 0x02 0x04 0x02)
 
