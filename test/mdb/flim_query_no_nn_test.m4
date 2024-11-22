@@ -1,4 +1,4 @@
-# Test CBUS Node Query request in FLiM mode as Node Number.
+# Test CBUS Node Query request ignored in FLiM mode if Node Number is zero.
 
 define(test_name, flim_query_no_nn_test)dnl
 include(common.inc)dnl
