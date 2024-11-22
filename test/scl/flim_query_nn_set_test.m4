@@ -1,4 +1,4 @@
-define(test_name, flim_query_test)dnl
+define(test_name, flim_query_nn_set_test)dnl
 include(common.inc)dnl
 include(rx_tx.inc)dnl
 include(io.inc)dnl
