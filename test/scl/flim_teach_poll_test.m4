@@ -19,7 +19,7 @@ beginning_of_test(157)
       rx_data(OPC_AREQ, 2, 32, 33, 18) -- AREQ, CBUS long poll request
       tx_check_for_no_message(5, output 2 poll response)
       --
-      report("test_name: Short poll request 0x0220,0x6446, output 6");
+      report("test_name: Short poll request 0x0220,0x6546, output 6");
       rx_data(OPC_ASRQ, 2, 32, 101, 70) -- ASRQ, CBUS short poll request
       tx_check_for_no_message(5, output 6 poll response)
       --
@@ -31,7 +31,7 @@ beginning_of_test(157)
       tx_wait_for_node_message(OPC_WRACK, 4, 2)
       --
       report("test_name: Set output 6 feedback, off 0x0000,0x6546");
-      rx_data(OPC_EVLRN, 0, 0, 101, 70, 3, 16#C8#) -- EVLRN, CBUS learn event, event variable 3, feedback inverted for output 6
+      rx_data(OPC_EVLRN, 0, 0, 101, 70, 3, 16#C8#) -- EVLRN, CBUS learn event, event variable 3, feedback inverted for output 6 -- (inversion ignored)
       tx_wait_for_node_message(OPC_WRACK, 4, 2)
       --
       report("test_name: Exit learn mode");
@@ -41,7 +41,7 @@ beginning_of_test(157)
       rx_data(OPC_AREQ, 2, 32, 33, 18) -- AREQ, CBUS long poll request
       tx_wait_for_node_message(OPC_AROF, 2, 32, 33, 18) -- AROF, CBUS long off poll response
       --
-      report("test_name: Short poll request 0x0220,0x6446, output 6");
+      report("test_name: Short poll request 0x0220,0x6546, output 6");
       rx_data(OPC_ASRQ, 2, 32, 101, 70) -- ASRQ, CBUS short poll request
       tx_wait_for_node_message(OPC_ARSOF, 4, 2, 101, 70) -- ARSOF, CBUS short off poll response
       --

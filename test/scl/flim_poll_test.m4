@@ -25,7 +25,7 @@ beginning_of_test(21)
       rx_data(OPC_AREQ, 2, 32, 33, 18) -- AREQ, CBUS long poll request
       tx_wait_for_node_message(OPC_ARON, 2, 32, 33, EN high, 18, EN low)
       --
-      report("test_name: Short poll request 0x0220,0x6446, output 6");
+      report("test_name: Short poll request 0x0220,0x6546, output 6");
       rx_data(OPC_ASRQ, 2, 32, 101, 70) -- ASRQ, CBUS short poll request
       tx_wait_for_node_message(OPC_ARSOF, 4, 2, 101, EN high, 70, EN low) -- ARSOF, CBUS short off poll response
       --
@@ -33,7 +33,7 @@ beginning_of_test(21)
       rx_data(OPC_ASOF, 9, 9, 4, 2) -- ASOF, CBUS short off
       output_wait_for_change(outputs_port, 64, 70, "test_name: Outputs 6 and 7 on")
       --
-      report("test_name: Short poll request 0x2002,0x6446, output 6");
+      report("test_name: Short poll request 0x2002,0x6546, output 6");
       rx_data(OPC_ASRQ, 32, 2, 101, 70) -- ASRQ, CBUS short poll request
       tx_wait_for_node_message(OPC_ARSON, 4, 2, 101, EN high, 70, EN low) -- ARSOF, CBUS short off poll response
 end_of_test
