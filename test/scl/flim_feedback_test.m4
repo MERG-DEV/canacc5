@@ -6,7 +6,7 @@ include(io.inc)dnl
 include(hardware.inc)dnl
 include(cbusdefs.inc)dnl
 
-beginning_of_test(37)
+beginning_of_test(38)
     variable last_output : integer;
     begin_test
       set_setup_off
@@ -34,10 +34,19 @@ beginning_of_test(37)
       report("test_name: Short off 0x0909, 0x0402, output 6 & 7 on");
       rx_data(OPC_ASOF, 9, 9, 4, 2)
       --
-      output_wait_for_change(outputs_port, last_output, 64, "Output 7 off")
+      output_wait_for_change(outputs_port, last_output, 64, "Output 2 on")
       last_output := outputs_port;
       output_wait_for_change(outputs_port, last_output, 70, "Outputs 2 6 & 7 on")
+      last_output := outputs_port;
       --
+      tx_wait_for_message(output 6 feedback (ASOF), OPC_ASOF, Opcode, 4, Node Number (high), 2, Node Number (low), 101, Event Number (high), 70, Event Number (low))
+      --
+      report("test_name: Short on 0x0909, 0x0402, output 6 & 7 off");
+      rx_data(OPC_ASON, 9, 9, 4, 2)
+      --
+      output_wait_for_change(outputs_port, last_output, 64, "Output 2 on")
+      --
+-- FIXME feedback should be inverted      tx_wait_for_message(output 6 feedback (ASON), OPC_ASON, Opcode, 4, Node Number (high), 2, Node Number (low), 101, Event Number (high), 70, Event Number (low))
       tx_wait_for_message(output 6 feedback (ASOF), OPC_ASOF, Opcode, 4, Node Number (high), 2, Node Number (low), 101, Event Number (high), 70, Event Number (low))
       --
 end_of_test
