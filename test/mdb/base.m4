@@ -1,1 +1,1 @@
-include(common.inc)dnl
+include(common.m4i)dnl
