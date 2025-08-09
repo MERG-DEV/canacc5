@@ -14,8 +14,10 @@ scls := $(addprefix $(scl_dir)/, $(addsuffix .scl, $(tests)))
 dats := $(wildcard $(dat_dir)/*.dat)
 mdb_incs := $(wildcard $(mdb_dir)/*.inc)
 mdb_m4s := $(wildcard $(mdb_dir)/*.m4)
+mdb_m4f := $(mdb_dir)/base.m4f
 scl_incs := $(wildcard $(scl_dir)/*.inc)
 scl_m4s := $(wildcard $(scl_dir)/*.m4)
+scl_m4f := $(scl_dir)/base.m4f
 
 test: $(logs)
 	@echo
@@ -36,11 +38,17 @@ $(logs): $(log_dir)/%.log: $(mdb_dir)/%.mdb $(scl_dir)/%.scl $(cof_dir)/*.produc
 $(log_dir):
 	mkdir -p $(log_dir)
 
-$(mdbs): %.mdb: %.m4
-	@cd $(@D) && m4 $(<F) > $(@F)
+$(mdb_m4f): $(mdb_incs)
+	cd $(@D) && m4 --freeze-state=$(@F) $(@F:.m4f=.m4)
 
-$(scls): %.scl: %.m4
-	@cd $(@D) && m4 $(<F) > $(@F)
+$(mdbs): %.mdb: %.m4 $(mdb_m4f)
+	cd $(@D) && m4 --reload-state=$(notdir $(mdb_m4f)) $(<F) > $(@F)
+
+$(scl_m4f): $(scl_incs)
+	@cd $(@D) && m4 --freeze-state=$(@F) $(@F:.m4f=.m4)
+
+$(scls): %.scl: %.m4 $(scl_m4f)
+	@cd $(@D) && m4 --reload-state=$(notdir $(scl_m4f)) $(<F) > $(@F)
 
 .PHONY: clean
 clean:

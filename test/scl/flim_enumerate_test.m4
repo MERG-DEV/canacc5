@@ -1,8 +1,4 @@
 define(test_name, flim_enumerate_test)dnl
-include(common.inc)dnl
-include(rx_tx.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(1186)
     variable test_sidl : integer;

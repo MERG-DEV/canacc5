@@ -1,10 +1,4 @@
 define(test_name, slim_unteach_test)dnl
-include(common.inc)dnl
-include(data_file.inc)dnl
-include(rx_tx.inc)dnl
-include(io.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(27740)
     data_file_variables

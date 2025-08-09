@@ -1,9 +1,4 @@
 define(test_name, flim_nv_read_test)dnl
-include(common.inc)dnl
-include(data_file.inc)dnl
-include(rx_tx.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(14863)
     data_file_variables

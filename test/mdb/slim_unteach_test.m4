@@ -1,7 +1,6 @@
 # Test unteaching events in SLiM mode.
 
 define(test_name, slim_unteach_test)dnl
-include(common.inc)dnl
 
 set_up_test_simulation
 

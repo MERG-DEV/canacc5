@@ -1,8 +1,4 @@
 define(test_name, slim_flim_test)dnl
-include(common.inc)dnl
-include(rx_tx.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(30000, label main, label setup)
     variable test_sidl : integer;

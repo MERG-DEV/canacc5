@@ -1,9 +1,4 @@
 define(test_name, flim_boot_maximum_events_test)dnl
-include(common.inc)dnl
-include(rx_tx.inc)dnl
-include(io.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(88)
     begin_test

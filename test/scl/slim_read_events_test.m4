@@ -1,10 +1,4 @@
 define(test_name, slim_read_events_test)dnl
-include(common.inc)dnl
-include(data_file.inc)dnl
-include(rx_tx.inc)dnl
-include(io.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(65)
     data_file_variables

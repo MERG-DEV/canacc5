@@ -1,7 +1,6 @@
 # Test CBUS Node Query request in FLiM mode with Node Number set.
 
 define(test_name, flim_query_nn_set_test)dnl
-include(common.inc)dnl
 
 set_up_test_simulation
 

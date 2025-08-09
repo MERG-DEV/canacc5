@@ -1,9 +1,4 @@
 define(test_name, slim_learn_short_no_space_test)dnl
-include(common.inc)dnl
-include(rx_tx.inc)dnl
-include(io.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(333)
     begin_test

@@ -1,7 +1,6 @@
 # Test CBUS teach feedback events in SLiM mode.
 
 define(test_name, slim_teach_feedback_test)dnl
-include(common.inc)dnl
 
 set_up_test_simulation
 

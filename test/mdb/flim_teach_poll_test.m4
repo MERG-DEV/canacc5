@@ -1,7 +1,6 @@
 # Test CBUS teach poll events in FLiM mode.
 
 define(test_name, flim_teach_poll_test)dnl
-include(common.inc)dnl
 
 set_up_test_simulation
 

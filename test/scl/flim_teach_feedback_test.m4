@@ -1,9 +1,4 @@
 define(test_name, flim_teach_feedback_test)dnl
-include(common.inc)dnl
-include(rx_tx.inc)dnl
-include(io.inc)dnl
-include(hardware.inc)dnl
-include(cbusdefs.inc)dnl
 
 beginning_of_test(265)
     variable last_output : integer;

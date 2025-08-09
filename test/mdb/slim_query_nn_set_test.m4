@@ -1,7 +1,6 @@
 # Test CBUS Node Query request ignored in SLiM mode even if Node Number is set.
 
 define(test_name, slim_query_nn_set_test)dnl
-include(common.inc)dnl
 
 set_up_test_simulation
 
