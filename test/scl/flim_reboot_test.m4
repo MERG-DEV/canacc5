@@ -1,4 +1,4 @@
-define(test_name, patsubst(__file__, {.m4},))dnl
+set_test_name()dnl
 
 beginning_of_test(30, label _CANInit, label _CANMain)
     begin_test

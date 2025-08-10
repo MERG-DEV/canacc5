@@ -1,4 +1,4 @@
-define(test_name, patsubst(__file__, {.m4},))dnl
+set_test_name()dnl
 
 beginning_of_test(1623)
     data_file_variables
