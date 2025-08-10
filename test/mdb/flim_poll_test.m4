@@ -1,6 +1,6 @@
 # Test CBUS output poll events in FLiM mode.
 
-define(test_name, flim_poll_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 set_up_test_simulation
 

@@ -1,4 +1,4 @@
-define(test_name, flim_no_can_id_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(1182)
     variable test_sidh : integer;

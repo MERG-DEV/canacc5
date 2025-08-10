@@ -1,4 +1,4 @@
-define(test_name, flim_unlearn_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(25687)
     data_file_variables

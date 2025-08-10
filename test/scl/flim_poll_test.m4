@@ -1,4 +1,4 @@
-define(test_name, flim_poll_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(21)
     begin_test

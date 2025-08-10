@@ -1,4 +1,4 @@
-define(test_name, slim_reboot_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(1654)
     begin_test

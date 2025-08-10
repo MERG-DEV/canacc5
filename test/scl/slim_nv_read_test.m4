@@ -1,4 +1,4 @@
-define(test_name, slim_nv_read_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(14863)
     data_file_variables

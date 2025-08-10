@@ -1,4 +1,4 @@
-define(test_name, slim_flim_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(30000, label main, label setup)
     variable test_sidl : integer;

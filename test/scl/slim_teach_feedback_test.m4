@@ -1,4 +1,4 @@
-define(test_name, slim_teach_feedback_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(1615)
     variable last_output : integer;

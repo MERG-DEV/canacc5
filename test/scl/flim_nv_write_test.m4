@@ -1,4 +1,4 @@
-define(test_name, flim_nv_write_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(247)
     data_file_variables

@@ -1,4 +1,4 @@
-define(test_name, flim_query_nn_set_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(781)
     begin_test

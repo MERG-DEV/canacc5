@@ -1,4 +1,4 @@
-define(test_name, flim_clear_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(16934)
     data_file_variables

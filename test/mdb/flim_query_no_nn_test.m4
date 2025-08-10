@@ -1,6 +1,6 @@
 # Test CBUS Node Query request ignored in FLiM mode if Node Number is zero.
 
-define(test_name, flim_query_no_nn_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 set_up_test_simulation
 

@@ -1,4 +1,4 @@
-define(test_name, slim_modify_by_index_test)dnl
+define(test_name, patsubst(__file__, {.m4},))dnl
 
 beginning_of_test(30371)
     data_file_variables
